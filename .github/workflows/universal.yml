@@ -1,0 +1,206 @@
+# ─────────────────────────────────────────────────────────────────────────────
+# Universal Azure Pipeline — v3
+# Changes v3: destroy log path fix, retry logic, timeout-minutes, concurrency.
+# ─────────────────────────────────────────────────────────────────────────────
+
+name: Universal Azure Pipeline
+
+# ── Concurrency: serialise runs targeting the same resource group ─────────────
+concurrency:
+  group: azure-deploy-${{ inputs.resource_group }}
+  cancel-in-progress: false
+
+on:
+  workflow_dispatch:
+    inputs:
+
+      # ── Execution mode ──────────────────────────────────────────────────
+      mode:
+        description: "Execution mode: script | bicep"
+        required: true
+        type: choice
+        options: [script, bicep]
+
+      # ── Script options ───────────────────────────────────────────────
+      script_name:
+        description: "Script file path (e.g. scripts/deploy.sh)"
+        required: false
+      script_type:
+        description: "Script runtime: bash | powershell | python"
+        required: false
+        type: choice
+        options: [bash, powershell, python]
+
+      # ── Bicep options ────────────────────────────────────────────────
+      bicep_file:
+        description: "Bicep template path (e.g. infra/main.bicep)"
+        required: false
+      bicep_params:
+        description: "Bicep parameters file (e.g. infra/params.dev.json) — optional"
+        required: false
+        default: ""
+
+      # ── Target environment ───────────────────────────────────────────
+      environment:
+        description: "Target environment"
+        required: true
+        type: choice
+        options: [dev, staging, prod]
+      resource_group:
+        description: "Azure resource group name"
+        required: true
+      location:
+        description: "Azure region (e.g. eastus, westeurope)"
+        required: true
+        default: "eastus"
+
+      # ── Post-deploy cleanup ──────────────────────────────────────────
+      destroy:
+        description: "Destroy resource group after deploy? (yes / no)"
+        required: true
+        default: "no"
+        type: choice
+        options: [no, yes]
+
+jobs:
+
+  # ── Job 1: Deploy ──────────────────────────────────────────────────────────
+  deploy:
+    name: "Deploy [${{ inputs.environment }}] (${{ inputs.mode }})"
+    runs-on: ubuntu-latest
+    environment: ${{ inputs.environment }}
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Validate inputs
+        run: |
+          ERR=0
+          if [[ "${{ inputs.mode }}" == "script" ]]; then
+            [[ -z "${{ inputs.script_name }}" ]] && echo "::error::script_name required for mode=script" && ERR=1
+            [[ -z "${{ inputs.script_type }}" ]] && echo "::error::script_type required for mode=script" && ERR=1
+          fi
+          [[ "${{ inputs.mode }}" == "bicep" && -z "${{ inputs.bicep_file }}" ]] \
+            && echo "::error::bicep_file required for mode=bicep" && ERR=1
+          [[ "${{ inputs.environment }}" == "prod" && "${{ inputs.destroy }}" == "yes" ]] \
+            && echo "::error::destroy=yes is not permitted in prod" && ERR=1
+          [[ $ERR -eq 0 ]] || exit 1
+
+      - name: Authenticate with Azure
+        uses: azure/login@v2
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+      # ── Bicep ─────────────────────────────────────────────────────────
+      - name: "[bicep] Create resource group"
+        if: ${{ inputs.mode == 'bicep' }}
+        run: |
+          for i in {1..3}; do
+            az group create \
+              --name "${{ inputs.resource_group }}" \
+              --location "${{ inputs.location }}" \
+              --tags environment="${{ inputs.environment }}" \
+            && break \
+            || { echo "::warning::az group create attempt $i failed — retrying in 10s"; sleep 10; }
+          done
+
+      - name: "[bicep] Deploy ARM template"
+        if: ${{ inputs.mode == 'bicep' }}
+        run: |
+          PARAMS_ARG=""
+          [[ -n "${{ inputs.bicep_params }}" ]] && PARAMS_ARG="--parameters @${{ inputs.bicep_params }}"
+
+          for i in {1..3}; do
+            az deployment group create \
+              --resource-group "${{ inputs.resource_group }}" \
+              --template-file "${{ inputs.bicep_file }}" \
+              $PARAMS_ARG \
+              --name "deploy-${{ inputs.environment }}-${{ github.run_number }}" \
+            && break \
+            || { echo "::warning::Deployment attempt $i failed — retrying in 10s"; sleep 10; }
+          done
+
+      # ── Scripts ───────────────────────────────────────────────────────
+      - name: "[script] Run Bash"
+        if: ${{ inputs.mode == 'script' && inputs.script_type == 'bash' }}
+        run: |
+          chmod +x "${{ inputs.script_name }}"
+          ./"${{ inputs.script_name }}"
+
+      - name: "[script] Run PowerShell"
+        if: ${{ inputs.mode == 'script' && inputs.script_type == 'powershell' }}
+        run: |
+          pwsh -File "${{ inputs.script_name }}"
+
+      - name: "[script] Run Python"
+        if: ${{ inputs.mode == 'script' && inputs.script_type == 'python' }}
+        run: |
+          python3 "${{ inputs.script_name }}"
+
+      # ── Logs ──────────────────────────────────────────────────────────
+      - name: Collect deployment logs
+        if: always()
+        run: |
+          mkdir -p deploy-logs
+          echo "run_id:     ${{ github.run_id }}"           >> deploy-logs/summary.txt
+          echo "run_number: ${{ github.run_number }}"       >> deploy-logs/summary.txt
+          echo "actor:      ${{ github.actor }}"            >> deploy-logs/summary.txt
+          echo "mode:       ${{ inputs.mode }}"             >> deploy-logs/summary.txt
+          echo "env:        ${{ inputs.environment }}"      >> deploy-logs/summary.txt
+          echo "rg:         ${{ inputs.resource_group }}"   >> deploy-logs/summary.txt
+          echo "ref:        ${{ github.ref }}"              >> deploy-logs/summary.txt
+          echo "timestamp:  $(date -u +%Y-%m-%dT%H:%M:%SZ)" >> deploy-logs/summary.txt
+
+      - name: Upload deployment logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: "deploy-logs-${{ inputs.environment }}-${{ github.run_number }}"
+          path: deploy-logs/
+          retention-days: 30
+
+  # ── Job 2: Destroy ─────────────────────────────────────────────────────────
+  destroy:
+    name: "Destroy [${{ inputs.environment }}] resource group"
+    needs: deploy
+    if: ${{ success() && inputs.destroy == 'yes' }}
+    environment: ${{ inputs.environment }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Authenticate with Azure
+        uses: azure/login@v2
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+      - name: Delete resource group
+        run: |
+          for i in {1..3}; do
+            az group delete \
+              --name "${{ inputs.resource_group }}" \
+              --yes \
+              --no-wait \
+            && break \
+            || { echo "::warning::Delete attempt $i failed — retrying in 10s"; sleep 10; }
+          done
+
+      - name: Collect destroy logs
+        if: always()
+        run: |
+          mkdir -p deploy-logs
+          echo "destroyed_rg: ${{ inputs.resource_group }}"  >> deploy-logs/destroy.txt
+          echo "environment:  ${{ inputs.environment }}"     >> deploy-logs/destroy.txt
+          echo "actor:        ${{ github.actor }}"           >> deploy-logs/destroy.txt
+          echo "run_number:   ${{ github.run_number }}"      >> deploy-logs/destroy.txt
+          echo "timestamp:    $(date -u +%Y-%m-%dT%H:%M:%SZ)" >> deploy-logs/destroy.txt
+
+      - name: Upload destroy logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: "destroy-logs-${{ inputs.environment }}-${{ github.run_number }}"
+          path: deploy-logs/
+          retention-days: 30

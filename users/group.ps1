@@ -18,7 +18,6 @@ if (-not $TenantId -or -not $SubscriptionId -or -not $PlainPassword -or -not $Cl
     exit 1
 }
 
-# Build the Password Profile Hashtable
 $passwordProfile = @{
     Password                      = $PlainPassword
     ForceChangePasswordNextSignIn = $true
@@ -33,22 +32,24 @@ $usersToCreate = @(
 $groupName = "CloudOps-Team"
 
 # ─────────────────────────────────────────────────────────────────────────────
-# 3. Connect to Azure via OIDC (works in both DRY_RUN and real execution)
-#    pwsh runs in a fresh session — it does NOT inherit the Az context that
-#    azure/login@v2 set in the bash shell, so we must Connect-AzAccount here.
+# 3. Fetch the OIDC assertion once — reused for both Az and Graph token requests
 # ─────────────────────────────────────────────────────────────────────────────
-Write-Host "Connecting to Azure via OIDC..." -ForegroundColor Cyan
+Write-Host "Fetching OIDC assertion from GitHub Actions..." -ForegroundColor Cyan
 
-# Request an OIDC token from the GitHub Actions token endpoint
 $oidcToken = (Invoke-RestMethod `
     -Uri     "$($env:ACTIONS_ID_TOKEN_REQUEST_URL)&audience=api://AzureADTokenExchange" `
-    -Headers @{ Authorization = "Bearer $($env:ACTIONS_ID_TOKEN_REQUEST_TOKEN)" } `
+    -Headers @{ Authorization = "Bearer $($env:ACTIONS_ID_TOKEN_REQUEST_TOKEN)" }
 ).value
 
 if (-not $oidcToken) {
     Write-Error "Failed to retrieve OIDC token from GitHub Actions. Ensure id-token: write permission is set."
     exit 1
 }
+
+# ─────────────────────────────────────────────────────────────────────────────
+# 4. Connect to Azure (Az PowerShell)
+# ─────────────────────────────────────────────────────────────────────────────
+Write-Host "Connecting to Azure via OIDC..." -ForegroundColor Cyan
 
 Connect-AzAccount `
     -ServicePrincipal `
@@ -60,13 +61,66 @@ Connect-AzAccount `
 Set-AzContext -SubscriptionId $SubscriptionId -ErrorAction Stop | Out-Null
 Write-Host "  ✅ Azure connected (Subscription: $SubscriptionId)" -ForegroundColor Green
 
+# ─────────────────────────────────────────────────────────────────────────────
+# 5. Connect to Microsoft Graph
+#
+#    Root cause of InvalidAuthenticationToken:
+#    Get-AzAccessToken returns a token scoped for ARM, not Graph. Even when
+#    -ResourceTypeName MSGraph is specified, the resulting token is sometimes
+#    wrapped or formatted in a way that newer Microsoft.Graph SDK versions
+#    (v2+) reject with IDX14102 (invalid Base64Url header).
+#
+#    Fix: request a Graph-scoped token directly from the Entra ID token
+#    endpoint using a client_credentials grant with the OIDC assertion as the
+#    client_assertion (federated identity credential flow). This produces a
+#    clean bearer token the Graph SDK always accepts.
+# ─────────────────────────────────────────────────────────────────────────────
 Write-Host "Connecting to Microsoft Graph..." -ForegroundColor Cyan
-$graphToken = (Get-AzAccessToken -ResourceTypeName MSGraph -TenantId $TenantId -ErrorAction Stop).Token
-Connect-MgGraph -AccessToken ($graphToken | ConvertTo-SecureString -AsPlainText -Force) -NoWelcome
+
+$graphTokenResponse = Invoke-RestMethod `
+    -Method POST `
+    -Uri    "https://login.microsoftonline.com/$TenantId/oauth2/v2.0/token" `
+    -ContentType "application/x-www-form-urlencoded" `
+    -Body   @{
+        grant_type            = "urn:ietf:params:oauth:grant-type:jwt-bearer"
+        client_id             = $ClientId
+        client_assertion_type = "urn:ietf:params:oauth:client-assertion-type:jwt-bearer"
+        client_assertion      = $oidcToken
+        scope                 = "https://graph.microsoft.com/.default"
+        requested_token_use   = "on_behalf_of"
+    } `
+    -ErrorAction SilentlyContinue
+
+# OBO requires delegated flow — if the app is service principal only, use
+# client_credentials with the federated assertion instead
+if (-not $graphTokenResponse -or -not $graphTokenResponse.access_token) {
+    Write-Host "  OBO flow unavailable, trying client_credentials federated flow..." -ForegroundColor Gray
+    $graphTokenResponse = Invoke-RestMethod `
+        -Method POST `
+        -Uri    "https://login.microsoftonline.com/$TenantId/oauth2/v2.0/token" `
+        -ContentType "application/x-www-form-urlencoded" `
+        -Body   @{
+            grant_type            = "client_credentials"
+            client_id             = $ClientId
+            client_assertion_type = "urn:ietf:params:oauth:client-assertion-type:jwt-bearer"
+            client_assertion      = $oidcToken
+            scope                 = "https://graph.microsoft.com/.default"
+        } `
+        -ErrorAction Stop
+}
+
+if (-not $graphTokenResponse -or -not $graphTokenResponse.access_token) {
+    Write-Error "Failed to acquire Microsoft Graph access token."
+    exit 1
+}
+
+# Connect-MgGraph with a raw System.Security.SecureString token (SDK v2 compatible)
+$secureGraphToken = ConvertTo-SecureString $graphTokenResponse.access_token -AsPlainText -Force
+Connect-MgGraph -AccessToken $secureGraphToken -NoWelcome -ErrorAction Stop
 Write-Host "  ✅ Microsoft Graph connected" -ForegroundColor Green
 
 # ─────────────────────────────────────────────────────────────────────────────
-# 4. DRY RUN — stop here after verifying auth
+# 6. DRY RUN — stop here after verifying auth
 # ─────────────────────────────────────────────────────────────────────────────
 if ($env:DRY_RUN -eq "true") {
     Write-Host "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━" -ForegroundColor Cyan
@@ -76,7 +130,7 @@ if ($env:DRY_RUN -eq "true") {
 }
 
 # ─────────────────────────────────────────────────────────────────────────────
-# 5. Create Users
+# 7. Create Users
 # ─────────────────────────────────────────────────────────────────────────────
 Write-Host "Processing Users..." -ForegroundColor Cyan
 $createdUsers = @()
@@ -113,7 +167,7 @@ Start-Sleep -Seconds 20
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-# 6. Create Group
+# 8. Create Group
 # ─────────────────────────────────────────────────────────────────────────────
 Write-Host "Processing Group..." -ForegroundColor Cyan
 $group = Get-MgGroup -Filter "displayName eq '$groupName'" -ErrorAction SilentlyContinue
@@ -138,7 +192,7 @@ else {
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-# 7. Add Members to Group
+# 9. Add Members to Group
 # ─────────────────────────────────────────────────────────────────────────────
 if ($group -and $group.Id) {
     Write-Host "Processing Group Membership..." -ForegroundColor Cyan
@@ -166,7 +220,7 @@ else {
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-# 8. Azure Role Assignments (RBAC)
+# 10. Azure Role Assignments (RBAC)
 # ─────────────────────────────────────────────────────────────────────────────
 Write-Host "Processing Azure Roles..." -ForegroundColor Cyan
 $scope = "/subscriptions/$SubscriptionId"
@@ -214,7 +268,7 @@ foreach ($mapping in $roleMappings) {
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-# 9. Conditional Access Policy (MFA)
+# 11. Conditional Access Policy (MFA)
 # ─────────────────────────────────────────────────────────────────────────────
 Write-Host "Processing Conditional Access Policy..." -ForegroundColor Cyan
 

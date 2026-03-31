@@ -1,7 +1,6 @@
 # ─────────────────────────────────────────────────────────────────────────────
-# Universal Azure Pipeline — v7
-# Changes v7: full compatibility for bash, powershell, python, and bicep across
-#             all three stages (build, test, deploy).
+# Universal Azure Pipeline — v8
+# Changes v8: switched to OIDC federated identity (no client secret needed).
 # ─────────────────────────────────────────────────────────────────────────────
 
 name: Universal Azure Pipeline
@@ -64,15 +63,13 @@ jobs:
   # ────────────────────────────────────────────────────────────────────────────
   # Job 1: BUILD
   # Validates inputs and performs offline checks (no Azure auth needed).
-  #   bicep     → az bicep build (compile check)
-  #   bash      → bash -n (syntax check)
-  #   powershell → pwsh -Command { $null = [scriptblock]::Create(...) } (parse check)
-  #   python    → python3 -m py_compile (syntax check)
   # ────────────────────────────────────────────────────────────────────────────
   build:
     name: "Build [${{ inputs.environment }}]"
     runs-on: ubuntu-latest
     timeout-minutes: 15
+    permissions:
+      contents: read
     env:
       FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 
@@ -163,21 +160,16 @@ jobs:
 
   # ────────────────────────────────────────────────────────────────────────────
   # Job 2: TEST
-  # Authenticates with Azure and does a live dry-run (no changes made).
-  #   bicep     → az deployment what-if (subscription or RG scope)
-  #   bash      → runs script with DRY_RUN=true env var
-  #   powershell → runs script with $env:DRY_RUN = 'true'
-  #   python    → runs script with DRY_RUN=true env var
-  #
-  # Convention: scripts should check for DRY_RUN=true and skip destructive
-  # actions. If your script does not support dry-run, this step is still
-  # useful as a connectivity / auth smoke-test.
+  # Authenticates with Azure via OIDC and does a live dry-run.
   # ────────────────────────────────────────────────────────────────────────────
   test:
     name: "Test [${{ inputs.environment }}]"
     needs: build
     runs-on: ubuntu-latest
     timeout-minutes: 15
+    permissions:
+      id-token: write
+      contents: read
     env:
       FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 
@@ -188,10 +180,9 @@ jobs:
       - name: Authenticate with Azure
         uses: azure/login@v2
         with:
-          client-id: ${{ secrets.AZURE_CLIENT_ID }}
           tenant-id: ${{ secrets.AZURE_TENANT_ID }}
           subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
-          client-secret: ${{ secrets.AZURE_CLIENT_SECRET }}
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
 
       # ── Bicep ────────────────────────────────────────────────────────
       - name: "[bicep] What-if at resource group scope"
@@ -283,6 +274,9 @@ jobs:
     needs: test
     runs-on: ubuntu-latest
     timeout-minutes: 30
+    permissions:
+      id-token: write
+      contents: read
     env:
       FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 
@@ -293,10 +287,9 @@ jobs:
       - name: Authenticate with Azure
         uses: azure/login@v2
         with:
-          client-id: ${{ secrets.AZURE_CLIENT_ID }}
           tenant-id: ${{ secrets.AZURE_TENANT_ID }}
           subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
-          client-secret: ${{ secrets.AZURE_CLIENT_SECRET }}
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
 
       # ── Bicep ────────────────────────────────────────────────────────
       - name: "[bicep] Create resource group"

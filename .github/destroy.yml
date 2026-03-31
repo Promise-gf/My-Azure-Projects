@@ -1,0 +1,85 @@
+# ─────────────────────────────────────────────────────────────────────────────
+# Universal Azure Destroy — v1
+# Separate manually-triggered workflow to destroy a resource group.
+# Run this only when you explicitly decide to tear down resources.
+# ─────────────────────────────────────────────────────────────────────────────
+
+name: Universal Azure Destroy
+
+on:
+  workflow_dispatch:
+    inputs:
+
+      environment:
+        description: "Target environment"
+        required: true
+        type: choice
+        options: [dev, staging, prod]
+
+      resource_group:
+        description: "Azure resource group name to destroy"
+        required: true
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
+# ── Concurrency: one destroy at a time per environment ───────────────────────
+concurrency:
+  group: azure-destroy-${{ inputs.environment }}
+  cancel-in-progress: false
+
+jobs:
+
+  destroy:
+    name: "Destroy [${{ inputs.environment }}] — ${{ inputs.resource_group }}"
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Guard — block destroy on prod
+        if: ${{ inputs.environment == 'prod' }}
+        run: |
+          echo "::error::Destroy is not permitted on prod. Exiting."
+          exit 1
+
+      - name: Authenticate with Azure
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Confirm resource group exists
+        run: |
+          az group show --name "${{ inputs.resource_group }}" \
+            || { echo "::error::Resource group '${{ inputs.resource_group }}' not found."; exit 1; }
+
+      - name: Delete resource group
+        run: |
+          for i in {1..3}; do
+            az group delete \
+              --name "${{ inputs.resource_group }}" \
+              --yes \
+              --no-wait \
+            && break \
+            || { echo "::warning::Delete attempt $i failed — retrying in 10s"; sleep 10; }
+          done
+          echo "✅ Destroy initiated for: ${{ inputs.resource_group }}"
+
+      - name: Collect destroy logs
+        if: always()
+        run: |
+          mkdir -p destroy-logs
+          echo "destroyed_rg: ${{ inputs.resource_group }}"  >> destroy-logs/summary.txt
+          echo "environment:  ${{ inputs.environment }}"     >> destroy-logs/summary.txt
+          echo "actor:        ${{ github.actor }}"           >> destroy-logs/summary.txt
+          echo "run_number:   ${{ github.run_number }}"      >> destroy-logs/summary.txt
+          echo "timestamp:    $(date -u +%Y-%m-%dT%H:%M:%SZ)" >> destroy-logs/summary.txt
+
+      - name: Upload destroy logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: "destroy-logs-${{ inputs.environment }}-${{ github.run_number }}"
+          path: destroy-logs/
+          retention-days: 30

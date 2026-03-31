@@ -8,68 +8,78 @@ Clear-AzContext -Force -ErrorAction SilentlyContinue
 Disconnect-MgGraph -ErrorAction SilentlyContinue
 
 # 2. Define Variables
- $TenantId       = $env:AZURE_TENANT_ID
- $SubscriptionId = $env:AZURE_SUBSCRIPTION_ID
- $PlainPassword  = $env:USER_PASSWORD
+$TenantId       = $env:AZURE_TENANT_ID
+$SubscriptionId = $env:AZURE_SUBSCRIPTION_ID
+$PlainPassword  = $env:USER_PASSWORD
+$ClientId       = $env:AZURE_CLIENT_ID
 
-if (-not $TenantId -or -not $SubscriptionId -or -not $PlainPassword) {
-    Write-Error "Missing required environment variables: AZURE_TENANT_ID, AZURE_SUBSCRIPTION_ID, USER_PASSWORD"
+if (-not $TenantId -or -not $SubscriptionId -or -not $PlainPassword -or -not $ClientId) {
+    Write-Error "Missing required environment variables: AZURE_TENANT_ID, AZURE_SUBSCRIPTION_ID, USER_PASSWORD, AZURE_CLIENT_ID"
     exit 1
 }
 
 # Build the Password Profile Hashtable
- $passwordProfile = @{
+$passwordProfile = @{
     Password                      = $PlainPassword
     ForceChangePasswordNextSignIn = $true
 }
 
- $usersToCreate = @(
+$usersToCreate = @(
     @{ DisplayName = "John Doe";    UserPrincipalName = "johndoe@swifttfinancesoutlook.onmicrosoft.com";    Alias = "johndoe"    },
     @{ DisplayName = "Jane Smith";  UserPrincipalName = "janesmith@swifttfinancesoutlook.onmicrosoft.com";  Alias = "janesmith"  },
     @{ DisplayName = "Bob Johnson"; UserPrincipalName = "bobjohnson@swifttfinancesoutlook.onmicrosoft.com"; Alias = "bobjohnson" }
 )
 
- $groupName = "CloudOps-Team"
+$groupName = "CloudOps-Team"
 
-# 3. DRY RUN CHECK (Crucial for the "Test" job)
+# ─────────────────────────────────────────────────────────────────────────────
+# 3. Connect to Azure via OIDC (works in both DRY_RUN and real execution)
+#    pwsh runs in a fresh session — it does NOT inherit the Az context that
+#    azure/login@v2 set in the bash shell, so we must Connect-AzAccount here.
+# ─────────────────────────────────────────────────────────────────────────────
+Write-Host "Connecting to Azure via OIDC..." -ForegroundColor Cyan
+
+# Request an OIDC token from the GitHub Actions token endpoint
+$oidcToken = (Invoke-RestMethod `
+    -Uri     "$($env:ACTIONS_ID_TOKEN_REQUEST_URL)&audience=api://AzureADTokenExchange" `
+    -Headers @{ Authorization = "Bearer $($env:ACTIONS_ID_TOKEN_REQUEST_TOKEN)" } `
+).value
+
+if (-not $oidcToken) {
+    Write-Error "Failed to retrieve OIDC token from GitHub Actions. Ensure id-token: write permission is set."
+    exit 1
+}
+
+Connect-AzAccount `
+    -ServicePrincipal `
+    -TenantId       $TenantId `
+    -ApplicationId  $ClientId `
+    -FederatedToken $oidcToken `
+    -ErrorAction Stop | Out-Null
+
+Set-AzContext -SubscriptionId $SubscriptionId -ErrorAction Stop | Out-Null
+Write-Host "  ✅ Azure connected (Subscription: $SubscriptionId)" -ForegroundColor Green
+
+Write-Host "Connecting to Microsoft Graph..." -ForegroundColor Cyan
+$graphToken = (Get-AzAccessToken -ResourceTypeName MSGraph -TenantId $TenantId -ErrorAction Stop).Token
+Connect-MgGraph -AccessToken ($graphToken | ConvertTo-SecureString -AsPlainText -Force) -NoWelcome
+Write-Host "  ✅ Microsoft Graph connected" -ForegroundColor Green
+
+# ─────────────────────────────────────────────────────────────────────────────
+# 4. DRY RUN — stop here after verifying auth
+# ─────────────────────────────────────────────────────────────────────────────
 if ($env:DRY_RUN -eq "true") {
     Write-Host "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━" -ForegroundColor Cyan
-    Write-Host "DRY_RUN MODE: Skipping resource creation." -ForegroundColor Yellow
-    Write-Host "Verifying authentication connectivity only..." -ForegroundColor Yellow
-    
-    # azure/login@v2 natively sets the Az context. We just verify it's there.
-    $ctx = Get-AzContext
-    if (-not $ctx) { Write-Error "Az Context missing! Ensure azure/login ran."; exit 1 }
-    Write-Host "  ✅ Az Context Valid: $($ctx.Subscription.Name)" -ForegroundColor Green
-    
-    # Verify we can get a Graph token
-    $graphToken = (Get-AzAccessToken -ResourceTypeName MSGraph -TenantId $TenantId).Token
-    if (-not $graphToken) { Write-Error "Failed to acquire Graph Token!"; exit 1 }
-    
-    Connect-MgGraph -AccessToken ($graphToken | ConvertTo-SecureString -AsPlainText -Force) -NoWelcome
-    Write-Host "  ✅ Microsoft Graph Connection Valid" -ForegroundColor Green
+    Write-Host "DRY_RUN MODE: Auth verified. Skipping resource creation." -ForegroundColor Yellow
     Write-Host "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━" -ForegroundColor Cyan
     exit 0
 }
 
-
-# 4. REAL EXECUTION - Verify Context
-Write-Host "Setting Azure context..." -ForegroundColor Cyan
- $ctx = Get-AzContext
-if (-not $ctx) {
-    Write-Error "Azure context not found. azure/login@v2 should have set this."
-    exit 1
-}
-Set-AzContext -SubscriptionId $SubscriptionId | Out-Null
-
-Write-Host "Connecting to Microsoft Graph using existing OIDC token..." -ForegroundColor Cyan
- $accessToken = (Get-AzAccessToken -ResourceTypeName MSGraph -TenantId $TenantId).Token
-Connect-MgGraph -AccessToken ($accessToken | ConvertTo-SecureString -AsPlainText -Force) -NoWelcome
-
-
-# 5. Create Users (Strict Check)
+# ─────────────────────────────────────────────────────────────────────────────
+# 5. Create Users
+# ─────────────────────────────────────────────────────────────────────────────
 Write-Host "Processing Users..." -ForegroundColor Cyan
- $createdUsers = @()
+$createdUsers = @()
 
 foreach ($userDef in $usersToCreate) {
     $existingUser = Get-MgUser -Filter "UserPrincipalName eq '$($userDef.UserPrincipalName)'" -ErrorAction SilentlyContinue
@@ -102,9 +112,11 @@ Write-Host "Waiting 20 seconds for Entra ID replication..." -ForegroundColor Gra
 Start-Sleep -Seconds 20
 
 
+# ─────────────────────────────────────────────────────────────────────────────
 # 6. Create Group
+# ─────────────────────────────────────────────────────────────────────────────
 Write-Host "Processing Group..." -ForegroundColor Cyan
- $group = Get-MgGroup -Filter "displayName eq '$groupName'" -ErrorAction SilentlyContinue
+$group = Get-MgGroup -Filter "displayName eq '$groupName'" -ErrorAction SilentlyContinue
 
 if (-not $group) {
     try {
@@ -125,7 +137,9 @@ else {
 }
 
 
-# 7. Add Members
+# ─────────────────────────────────────────────────────────────────────────────
+# 7. Add Members to Group
+# ─────────────────────────────────────────────────────────────────────────────
 if ($group -and $group.Id) {
     Write-Host "Processing Group Membership..." -ForegroundColor Cyan
     foreach ($user in $createdUsers) {
@@ -151,10 +165,12 @@ else {
 }
 
 
+# ─────────────────────────────────────────────────────────────────────────────
 # 8. Azure Role Assignments (RBAC)
+# ─────────────────────────────────────────────────────────────────────────────
 Write-Host "Processing Azure Roles..." -ForegroundColor Cyan
- $scope = "/subscriptions/$SubscriptionId"
- $roleMappings = @(
+$scope = "/subscriptions/$SubscriptionId"
+$roleMappings = @(
     @{ UPN = "johndoe@swifttfinancesoutlook.onmicrosoft.com";    Role = "Virtual Machine Contributor" },
     @{ UPN = "janesmith@swifttfinancesoutlook.onmicrosoft.com";  Role = "Reader"                      },
     @{ UPN = "bobjohnson@swifttfinancesoutlook.onmicrosoft.com"; Role = "Contributor"                 }
@@ -197,7 +213,9 @@ foreach ($mapping in $roleMappings) {
 }
 
 
+# ─────────────────────────────────────────────────────────────────────────────
 # 9. Conditional Access Policy (MFA)
+# ─────────────────────────────────────────────────────────────────────────────
 Write-Host "Processing Conditional Access Policy..." -ForegroundColor Cyan
 
 if ($group -and $group.Id) {

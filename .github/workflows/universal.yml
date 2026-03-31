@@ -1,6 +1,6 @@
 # ─────────────────────────────────────────────────────────────────────────────
-# Universal Azure Pipeline — v8
-# Changes v8: switched to OIDC federated identity (no client secret needed).
+# Universal Azure Pipeline — v9
+# Changes v9: pass OIDC env vars into pwsh steps so Connect-AzAccount works.
 # ─────────────────────────────────────────────────────────────────────────────
 
 name: Universal Azure Pipeline
@@ -183,7 +183,7 @@ jobs:
           tenant-id: ${{ secrets.AZURE_TENANT_ID }}
           subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
           client-id: ${{ secrets.AZURE_CLIENT_ID }}
-          enable-AzPSSession: true   
+          enable-AzPSSession: true
 
       # ── Bicep ────────────────────────────────────────────────────────
       - name: "[bicep] What-if at resource group scope"
@@ -232,7 +232,10 @@ jobs:
           DRY_RUN: "true"
           AZURE_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
           AZURE_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+          AZURE_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
           USER_PASSWORD: ${{ secrets.USER_PASSWORD }}
+          ACTIONS_ID_TOKEN_REQUEST_URL: ${{ env.ACTIONS_ID_TOKEN_REQUEST_URL }}
+          ACTIONS_ID_TOKEN_REQUEST_TOKEN: ${{ env.ACTIONS_ID_TOKEN_REQUEST_TOKEN }}
         run: |
           pwsh -File "${{ inputs.script_name }}"
           echo "✅ PowerShell dry-run completed."
@@ -292,7 +295,7 @@ jobs:
           tenant-id: ${{ secrets.AZURE_TENANT_ID }}
           subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
           client-id: ${{ secrets.AZURE_CLIENT_ID }}
-          enable-AzPSSession: true   
+          enable-AzPSSession: true
 
       # ── Bicep ────────────────────────────────────────────────────────
       - name: "[bicep] Create resource group"
@@ -357,7 +360,10 @@ jobs:
         env:
           AZURE_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
           AZURE_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+          AZURE_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
           USER_PASSWORD: ${{ secrets.USER_PASSWORD }}
+          ACTIONS_ID_TOKEN_REQUEST_URL: ${{ env.ACTIONS_ID_TOKEN_REQUEST_URL }}
+          ACTIONS_ID_TOKEN_REQUEST_TOKEN: ${{ env.ACTIONS_ID_TOKEN_REQUEST_TOKEN }}
         run: |
           pwsh -File "${{ inputs.script_name }}"
 

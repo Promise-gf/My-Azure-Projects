@@ -183,6 +183,7 @@ jobs:
           tenant-id: ${{ secrets.AZURE_TENANT_ID }}
           subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
           client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          enable-AzPSSession: true   
 
       # ── Bicep ────────────────────────────────────────────────────────
       - name: "[bicep] What-if at resource group scope"
@@ -291,6 +292,7 @@ jobs:
           tenant-id: ${{ secrets.AZURE_TENANT_ID }}
           subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
           client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          enable-AzPSSession: true   
 
       # ── Bicep ────────────────────────────────────────────────────────
       - name: "[bicep] Create resource group"

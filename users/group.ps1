@@ -7,43 +7,69 @@
 Clear-AzContext -Force -ErrorAction SilentlyContinue
 Disconnect-MgGraph -ErrorAction SilentlyContinue
 
-# 2. Define Variables — read from environment variables set by GitHub Actions
-$TenantId       = $env:AZURE_TENANT_ID
-$SubscriptionId = $env:AZURE_SUBSCRIPTION_ID
-$PlainPassword  = $env:USER_PASSWORD
+# 2. Define Variables
+ $TenantId       = $env:AZURE_TENANT_ID
+ $SubscriptionId = $env:AZURE_SUBSCRIPTION_ID
+ $PlainPassword  = $env:USER_PASSWORD
 
 if (-not $TenantId -or -not $SubscriptionId -or -not $PlainPassword) {
     Write-Error "Missing required environment variables: AZURE_TENANT_ID, AZURE_SUBSCRIPTION_ID, USER_PASSWORD"
     exit 1
 }
 
-# Build the Password Profile Hashtable for New-MgUser
-$passwordProfile = @{
+# Build the Password Profile Hashtable
+ $passwordProfile = @{
     Password                      = $PlainPassword
     ForceChangePasswordNextSignIn = $true
 }
 
-$usersToCreate = @(
+ $usersToCreate = @(
     @{ DisplayName = "John Doe";    UserPrincipalName = "johndoe@swifttfinancesoutlook.onmicrosoft.com";    Alias = "johndoe"    },
     @{ DisplayName = "Jane Smith";  UserPrincipalName = "janesmith@swifttfinancesoutlook.onmicrosoft.com";  Alias = "janesmith"  },
     @{ DisplayName = "Bob Johnson"; UserPrincipalName = "bobjohnson@swifttfinancesoutlook.onmicrosoft.com"; Alias = "bobjohnson" }
 )
 
-$groupName = "CloudOps-Team"
+ $groupName = "CloudOps-Team"
 
-# 3. Connect using the OIDC token already obtained by azure/login@v2
+# 3. DRY RUN CHECK (Crucial for the "Test" job)
+if ($env:DRY_RUN -eq "true") {
+    Write-Host "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━" -ForegroundColor Cyan
+    Write-Host "DRY_RUN MODE: Skipping resource creation." -ForegroundColor Yellow
+    Write-Host "Verifying authentication connectivity only..." -ForegroundColor Yellow
+    
+    # azure/login@v2 natively sets the Az context. We just verify it's there.
+    $ctx = Get-AzContext
+    if (-not $ctx) { Write-Error "Az Context missing! Ensure azure/login ran."; exit 1 }
+    Write-Host "  ✅ Az Context Valid: $($ctx.Subscription.Name)" -ForegroundColor Green
+    
+    # Verify we can get a Graph token
+    $graphToken = (Get-AzAccessToken -ResourceTypeName MSGraph -TenantId $TenantId).Token
+    if (-not $graphToken) { Write-Error "Failed to acquire Graph Token!"; exit 1 }
+    
+    Connect-MgGraph -AccessToken ($graphToken | ConvertTo-SecureString -AsPlainText -Force) -NoWelcome
+    Write-Host "  ✅ Microsoft Graph Connection Valid" -ForegroundColor Green
+    Write-Host "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━" -ForegroundColor Cyan
+    exit 0
+}
+
+
+# 4. REAL EXECUTION - Verify Context
 Write-Host "Setting Azure context..." -ForegroundColor Cyan
-Connect-AzAccount -Identity -ErrorAction SilentlyContinue
-Set-AzContext -SubscriptionId $SubscriptionId
+ $ctx = Get-AzContext
+if (-not $ctx) {
+    Write-Error "Azure context not found. azure/login@v2 should have set this."
+    exit 1
+}
+Set-AzContext -SubscriptionId $SubscriptionId | Out-Null
 
 Write-Host "Connecting to Microsoft Graph using existing OIDC token..." -ForegroundColor Cyan
-$accessToken = (Get-AzAccessToken -ResourceTypeName MSGraph -TenantId $TenantId).Token
+ $accessToken = (Get-AzAccessToken -ResourceTypeName MSGraph -TenantId $TenantId).Token
 Connect-MgGraph -AccessToken ($accessToken | ConvertTo-SecureString -AsPlainText -Force) -NoWelcome
 
 
-# 4. Create Users (Strict Check)
+# 5. Create Users (Strict Check)
 Write-Host "Processing Users..." -ForegroundColor Cyan
-$createdUsers = @()
+ $createdUsers = @()
 
 foreach ($userDef in $usersToCreate) {
     $existingUser = Get-MgUser -Filter "UserPrincipalName eq '$($userDef.UserPrincipalName)'" -ErrorAction SilentlyContinue
@@ -72,13 +98,13 @@ foreach ($userDef in $usersToCreate) {
     }
 }
 
-Write-Host "Waiting 20 seconds for replication..." -ForegroundColor Gray
+Write-Host "Waiting 20 seconds for Entra ID replication..." -ForegroundColor Gray
 Start-Sleep -Seconds 20
 
 
-# 5. Create Group
+# 6. Create Group
 Write-Host "Processing Group..." -ForegroundColor Cyan
-$group = Get-MgGroup -Filter "displayName eq '$groupName'" -ErrorAction SilentlyContinue
+ $group = Get-MgGroup -Filter "displayName eq '$groupName'" -ErrorAction SilentlyContinue
 
 if (-not $group) {
     try {
@@ -99,7 +125,7 @@ else {
 }
 
 
-# 6. Add Members
+# 7. Add Members
 if ($group -and $group.Id) {
     Write-Host "Processing Group Membership..." -ForegroundColor Cyan
     foreach ($user in $createdUsers) {
@@ -125,10 +151,10 @@ else {
 }
 
 
-# 7. Azure Role Assignments (RBAC)
+# 8. Azure Role Assignments (RBAC)
 Write-Host "Processing Azure Roles..." -ForegroundColor Cyan
-$scope = "/subscriptions/$SubscriptionId"
-$roleMappings = @(
+ $scope = "/subscriptions/$SubscriptionId"
+ $roleMappings = @(
     @{ UPN = "johndoe@swifttfinancesoutlook.onmicrosoft.com";    Role = "Virtual Machine Contributor" },
     @{ UPN = "janesmith@swifttfinancesoutlook.onmicrosoft.com";  Role = "Reader"                      },
     @{ UPN = "bobjohnson@swifttfinancesoutlook.onmicrosoft.com"; Role = "Contributor"                 }
@@ -160,7 +186,7 @@ foreach ($mapping in $roleMappings) {
         }
         catch {
             if ($_.Exception.Message -match "Forbidden") {
-                Write-Warning "  [ERR] Insufficient permissions. Grant 'Owner' rights to GitHubActionsApp in Subscription IAM."
+                Write-Warning "  [ERR] Insufficient permissions. Grant 'User Access Administrator' or 'Owner' to the GitHub OIDC App in Subscription IAM."
                 break
             }
             else {
@@ -171,7 +197,7 @@ foreach ($mapping in $roleMappings) {
 }
 
 
-# 8. Conditional Access Policy (MFA)
+# 9. Conditional Access Policy (MFA)
 Write-Host "Processing Conditional Access Policy..." -ForegroundColor Cyan
 
 if ($group -and $group.Id) {
@@ -189,8 +215,8 @@ if ($group -and $group.Id) {
             displayName   = $policyName
             state         = "enabled"
             conditions    = @{
-                users        = @{ includeGroups = @($group.Id) }
-                applications = @{ includeApplications = @("All") }
+                users          = @{ includeGroups = @($group.Id) }
+                applications   = @{ includeApplications = @("All") }
                 clientAppTypes = @("all")
             }
             grantControls = @{
@@ -205,7 +231,7 @@ if ($group -and $group.Id) {
         }
         catch {
             Write-Error "  [ERR] Failed to create CA Policy: $($_.Exception.Message)"
-            Write-Warning "  NOTE: Ensure GitHubActionsApp has 'Policy.ReadWrite.ConditionalAccess' permission in Entra ID."
+            Write-Warning "  NOTE: Ensure the GitHub OIDC App has 'Policy.ReadWrite.ConditionalAccess' (Application permission) granted Admin Consent in Entra ID."
         }
     }
 }

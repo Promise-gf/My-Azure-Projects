@@ -229,6 +229,8 @@ jobs:
         if: ${{ inputs.mode == 'script' && inputs.script_type == 'powershell' }}
         env:
           DRY_RUN: "true"
+          AZURE_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
+          AZURE_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
           USER_PASSWORD: ${{ secrets.USER_PASSWORD }}
         run: |
           pwsh -File "${{ inputs.script_name }}"
@@ -351,7 +353,8 @@ jobs:
       - name: "[powershell] Run script"
         if: ${{ inputs.mode == 'script' && inputs.script_type == 'powershell' }}
         env:
-          # No DRY_RUN variable set here, so the script executes fully
+          AZURE_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
+          AZURE_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
           USER_PASSWORD: ${{ secrets.USER_PASSWORD }}
         run: |
           pwsh -File "${{ inputs.script_name }}"

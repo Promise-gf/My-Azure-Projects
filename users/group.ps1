@@ -31,12 +31,14 @@ $usersToCreate = @(
 
 $groupName = "CloudOps-Team"
 
-# 3. Connect — OIDC authentication already handled by azure/login@v2 in the workflow
-Write-Host "Connecting to Microsoft Graph..." -ForegroundColor Cyan
-Connect-MgGraph -TenantId $TenantId -NoWelcome
-
+# 3. Connect using the OIDC token already obtained by azure/login@v2
 Write-Host "Setting Azure context..." -ForegroundColor Cyan
+Connect-AzAccount -Identity -ErrorAction SilentlyContinue
 Set-AzContext -SubscriptionId $SubscriptionId
+
+Write-Host "Connecting to Microsoft Graph using existing OIDC token..." -ForegroundColor Cyan
+$accessToken = (Get-AzAccessToken -ResourceTypeName MSGraph -TenantId $TenantId).Token
+Connect-MgGraph -AccessToken ($accessToken | ConvertTo-SecureString -AsPlainText -Force) -NoWelcome
 
 
 # 4. Create Users (Strict Check)

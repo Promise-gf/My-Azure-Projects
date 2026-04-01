@@ -1,6 +1,7 @@
 # ─────────────────────────────────────────────────────────────────────────────
-# Universal Azure Pipeline — v9
-# Changes v9: pass OIDC env vars into pwsh steps so Connect-AzAccount works.
+# Universal Azure Pipeline — v10
+# Changes v10: added environment: azure-deploy to test and deploy jobs
+#              so OIDC subject matches the federated credential.
 # ─────────────────────────────────────────────────────────────────────────────
 
 name: Universal Azure Pipeline
@@ -167,6 +168,7 @@ jobs:
     needs: build
     runs-on: ubuntu-latest
     timeout-minutes: 15
+    environment: azure-deploy        # ← OIDC subject must match this
     permissions:
       id-token: write
       contents: read
@@ -279,6 +281,7 @@ jobs:
     needs: test
     runs-on: ubuntu-latest
     timeout-minutes: 30
+    environment: azure-deploy        # ← OIDC subject must match this
     permissions:
       id-token: write
       contents: read

@@ -139,9 +139,9 @@ Because these VMs have no public IPs, you access them securely via the Bastion h
 4. Choose **Bastion** (for browser-based) or **Native Client** (for local RDP/SSH client).
 5. Enter the `adminUsername` and `adminPassword` you provided during deployment.
 
-<img src='images/screenshot(258).png' width='800px' />
-<img src='images/screenshot(2259).png' width='800px' />
-<img src='images/screenshot(262).png' width='800px' />
-<img src='images/screenshot(268).png' width='800px' />
-<img src='images/screenshot(269).png' width='800px' />
-<img src='images/screenshot(271).png' width='800px' />
+<img src="images/screenshot-258.png" width="800"/>
+<img src="images/screenshot-259.png" width="800"/>
+<img src="images/screenshot-262.png" width="800"/>
+<img src="images/screenshot-268.png" width="800"/>
+<img src="images/screenshot-269.png" width="800"/>
+<img src="images/screenshot-271.png" width="800"/>

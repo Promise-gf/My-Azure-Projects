@@ -145,3 +145,4 @@ Because these VMs have no public IPs, you access them securely via the Bastion h
 <img src="Azure/images/screenshot 268.png" width="800"/>
 <img src="Azure/images/screenshot 269.png" width="800"/>
 <img src="Azure/images/screenshot 271.png" width="800"/>
+![Test](images/screenshot-258.png)

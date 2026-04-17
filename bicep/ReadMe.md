@@ -1,3 +1,4 @@
+ykekkdldlld
 # 🛡️ Azure Enterprise Secure VM Factory
 
 A battle-tested, production-grade Azure Bicep template for deploying highly secure, resilient, and observable Virtual Machines.
@@ -129,6 +130,10 @@ Because these VMs have no public IPs, you access them securely via the Bastion h
 3. At the top, click **Connect** -> select `win-01` or `linux-01`.
 4. Choose **Bastion** (for browser-based) or **Native Client** (for local RDP/SSH client).
 5. Enter the `adminUsername` and `adminPassword` you provided during deployment.
+
+
+````
+
 
 <img src="https://github.com/Promise-gf/My-Azure-Projects/blob/main/images/Screenshot%20258.png" width="800"/>
 <img src="https://github.com/Promise-gf/My-Azure-Projects/blob/main/images/Screenshot%20259.png" width="800"/>

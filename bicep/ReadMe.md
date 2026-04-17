@@ -140,9 +140,8 @@ Because these VMs have no public IPs, you access them securely via the Bastion h
 5. Enter the `adminUsername` and `adminPassword` you provided during deployment.
 
 <img src="https://github.com/Promise-gf/My-Azure-Projects/blob/main/images/Screenshot%20258.png" width="800"/>
-<img src="Azure/images/screenshot 259.png" width="800"/>
-<img src="Azure/images/screenshot 262.png" width="800"/>
-<img src="Azure/images/screenshot 268.png" width="800"/>
-<img src="Azure/images/screenshot 269.png" width="800"/>
-<img src="Azure/images/screenshot 271.png" width="800"/>
-![Test](images/screenshot-258.png)
+<img src="https://github.com/Promise-gf/My-Azure-Projects/blob/main/images/Screenshot%20259.png" width="800"/>
+<img src="https://github.com/Promise-gf/My-Azure-Projects/blob/main/images/Screenshot%20262.png" width="800"/>
+<img src="https://github.com/Promise-gf/My-Azure-Projects/blob/main/images/Screenshot%20268.png" width="800"/>
+<img src="https://github.com/Promise-gf/My-Azure-Projects/blob/main/images/Screenshot%20269.png" width="800"/>
+<img src="https://github.com/Promise-gf/My-Azure-Projects/blob/main/images/Screenshot%20271.png" width="800"/>

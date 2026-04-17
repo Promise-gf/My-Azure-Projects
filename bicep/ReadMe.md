@@ -139,7 +139,7 @@ Because these VMs have no public IPs, you access them securely via the Bastion h
 4. Choose **Bastion** (for browser-based) or **Native Client** (for local RDP/SSH client).
 5. Enter the `adminUsername` and `adminPassword` you provided during deployment.
 
-<img src="Azure/images/screenshot 258.png" width="800"/>
+<img src="https://github.com/Promise-gf/My-Azure-Projects/blob/main/images/Screenshot%20258.png" width="800"/>
 <img src="Azure/images/screenshot 259.png" width="800"/>
 <img src="Azure/images/screenshot 262.png" width="800"/>
 <img src="Azure/images/screenshot 268.png" width="800"/>

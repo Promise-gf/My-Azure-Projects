@@ -1,0 +1,805 @@
+{
+  "error": null,
+  "id": "/subscriptions/830bd052-a220-404e-b150-8d8bd653d7a9/resourceGroups/myResourceGroup/providers/Microsoft.Resources/deployments/main",
+  "name": "main",
+  "properties": {
+    "correlationId": "a39f5247-ec43-40b9-8e13-18fcbbcaeabc",
+    "debugSetting": null,
+    "dependencies": [
+      {
+        "dependsOn": [
+          {
+            "id": "/subscriptions/830bd052-a220-404e-b150-8d8bd653d7a9/resourceGroups/myResourceGroup/providers/Microsoft.Network/networkSecurityGroups/dev-nsg",
+            "resourceGroup": "myResourceGroup",
+            "resourceName": "dev-nsg",
+            "resourceType": "Microsoft.Network/networkSecurityGroups"
+          }
+        ],
+        "id": "/subscriptions/830bd052-a220-404e-b150-8d8bd653d7a9/resourceGroups/myResourceGroup/providers/Microsoft.Network/networkSecurityGroups/dev-nsg/providers/Microsoft.Insights/diagnosticSettings/nsgToLogAnalytics",
+        "resourceGroup": "myResourceGroup",
+        "resourceName": "nsgToLogAnalytics",
+        "resourceType": "Microsoft.Insights/diagnosticSettings"
+      },
+      {
+        "dependsOn": [
+          {
+            "id": "/subscriptions/830bd052-a220-404e-b150-8d8bd653d7a9/resourceGroups/myResourceGroup/providers/Microsoft.Network/networkSecurityGroups/dev-nsg",
+            "resourceGroup": "myResourceGroup",
+            "resourceName": "dev-nsg",
+            "resourceType": "Microsoft.Network/networkSecurityGroups"
+          },
+          {
+            "id": "/subscriptions/830bd052-a220-404e-b150-8d8bd653d7a9/resourceGroups/myResourceGroup/providers/Microsoft.Network/virtualNetworks/dev-vnet",
+            "resourceGroup": "myResourceGroup",
+            "resourceName": "dev-vnet",
+            "resourceType": "Microsoft.Network/virtualNetworks"
+          }
+        ],
+        "id": "/subscriptions/830bd052-a220-404e-b150-8d8bd653d7a9/resourceGroups/myResourceGroup/providers/Microsoft.Network/virtualNetworks/dev-vnet/subnets/compute-subnet",
+        "resourceGroup": "myResourceGroup",
+        "resourceName": "dev-vnet/compute-subnet",
+        "resourceType": "Microsoft.Network/virtualNetworks/subnets"
+      },
+      {
+        "dependsOn": [
+          {
+            "id": "/subscriptions/830bd052-a220-404e-b150-8d8bd653d7a9/resourceGroups/myResourceGroup/providers/Microsoft.Network/virtualNetworks/dev-vnet",
+            "resourceGroup": "myResourceGroup",
+            "resourceName": "dev-vnet",
+            "resourceType": "Microsoft.Network/virtualNetworks"
+          }
+        ],
+        "id": "/subscriptions/830bd052-a220-404e-b150-8d8bd653d7a9/resourceGroups/myResourceGroup/providers/Microsoft.Network/virtualNetworks/dev-vnet/subnets/AzureBastionSubnet",
+        "resourceGroup": "myResourceGroup",
+        "resourceName": "dev-vnet/AzureBastionSubnet",
+        "resourceType": "Microsoft.Network/virtualNetworks/subnets"
+      },
+      {
+        "dependsOn": [
+          {
+            "id": "/subscriptions/830bd052-a220-404e-b150-8d8bd653d7a9/resourceGroups/myResourceGroup/providers/Microsoft.Network/publicIPAddresses/dev-bastion-pip",
+            "resourceGroup": "myResourceGroup",
+            "resourceName": "dev-bastion-pip",
+            "resourceType": "Microsoft.Network/publicIPAddresses"
+          },
+          {
+            "id": "/subscriptions/830bd052-a220-404e-b150-8d8bd653d7a9/resourceGroups/myResourceGroup/providers/Microsoft.Network/virtualNetworks/dev-vnet/subnets/AzureBastionSubnet",
+            "resourceGroup": "myResourceGroup",
+            "resourceName": "dev-vnet/AzureBastionSubnet",
+            "resourceType": "Microsoft.Network/virtualNetworks/subnets"
+          }
+        ],
+        "id": "/subscriptions/830bd052-a220-404e-b150-8d8bd653d7a9/resourceGroups/myResourceGroup/providers/Microsoft.Network/bastionHosts/dev-bastionHost",
+        "resourceGroup": "myResourceGroup",
+        "resourceName": "dev-bastionHost",
+        "resourceType": "Microsoft.Network/bastionHosts"
+      },
+      {
+        "dependsOn": [
+          {
+            "id": "/subscriptions/830bd052-a220-404e-b150-8d8bd653d7a9/resourceGroups/myResourceGroup/providers/Microsoft.RecoveryServices/vaults/rsv-gelgpjf23ri44",
+            "resourceGroup": "myResourceGroup",
+            "resourceName": "rsv-gelgpjf23ri44",
+            "resourceType": "Microsoft.RecoveryServices/vaults"
+          }
+        ],
+        "id": "/subscriptions/830bd052-a220-404e-b150-8d8bd653d7a9/resourceGroups/myResourceGroup/providers/Microsoft.RecoveryServices/vaults/rsv-gelgpjf23ri44/backupPolicies/DailyBackupPolicy-dev",
+        "resourceGroup": "myResourceGroup",
+        "resourceName": "rsv-gelgpjf23ri44/DailyBackupPolicy-dev",
+        "resourceType": "Microsoft.RecoveryServices/vaults/backupPolicies"
+      },
+      {
+        "dependsOn": [
+          {
+            "id": "/subscriptions/830bd052-a220-404e-b150-8d8bd653d7a9/resourceGroups/myResourceGroup/providers/Microsoft.Compute/availabilitySets/dev-avset-linux",
+            "resourceGroup": "myResourceGroup",
+            "resourceName": "dev-avset-linux",
+            "resourceType": "Microsoft.Compute/availabilitySets"
+          },
+          {
+            "id": "/subscriptions/830bd052-a220-404e-b150-8d8bd653d7a9/resourceGroups/myResourceGroup/providers/Microsoft.Compute/availabilitySets/dev-avset-win",
+            "resourceGroup": "myResourceGroup",
+            "resourceName": "dev-avset-win",
+            "resourceType": "Microsoft.Compute/availabilitySets"
+          },
+          {
+            "id": "/subscriptions/830bd052-a220-404e-b150-8d8bd653d7a9/resourceGroups/myResourceGroup/providers/Microsoft.Network/networkInterfaces/win-01-nic",
+            "resourceGroup": "myResourceGroup",
+            "resourceName": "win-01-nic",
+            "resourceType": "Microsoft.Network/networkInterfaces"
+          }
+        ],
+        "id": "/subscriptions/830bd052-a220-404e-b150-8d8bd653d7a9/resourceGroups/myResourceGroup/providers/Microsoft.Compute/virtualMachines/win-01",
+        "resourceGroup": "myResourceGroup",
+        "resourceName": "win-01",
+        "resourceType": "Microsoft.Compute/virtualMachines"
+      },
+      {
+        "dependsOn": [
+          {
+            "id": "/subscriptions/830bd052-a220-404e-b150-8d8bd653d7a9/resourceGroups/myResourceGroup/providers/Microsoft.Compute/availabilitySets/dev-avset-linux",
+            "resourceGroup": "myResourceGroup",
+            "resourceName": "dev-avset-linux",
+            "resourceType": "Microsoft.Compute/availabilitySets"
+          },
+          {
+            "id": "/subscriptions/830bd052-a220-404e-b150-8d8bd653d7a9/resourceGroups/myResourceGroup/providers/Microsoft.Compute/availabilitySets/dev-avset-win",
+            "resourceGroup": "myResourceGroup",
+            "resourceName": "dev-avset-win",
+            "resourceType": "Microsoft.Compute/availabilitySets"
+          },
+          {
+            "id": "/subscriptions/830bd052-a220-404e-b150-8d8bd653d7a9/resourceGroups/myResourceGroup/providers/Microsoft.Network/networkInterfaces/linux-01-nic",
+            "resourceGroup": "myResourceGroup",
+            "resourceName": "linux-01-nic",
+            "resourceType": "Microsoft.Network/networkInterfaces"
+          }
+        ],
+        "id": "/subscriptions/830bd052-a220-404e-b150-8d8bd653d7a9/resourceGroups/myResourceGroup/providers/Microsoft.Compute/virtualMachines/linux-01",
+        "resourceGroup": "myResourceGroup",
+        "resourceName": "linux-01",
+        "resourceType": "Microsoft.Compute/virtualMachines"
+      },
+      {
+        "dependsOn": [
+          {
+            "id": "/subscriptions/830bd052-a220-404e-b150-8d8bd653d7a9/resourceGroups/myResourceGroup/providers/Microsoft.Compute/virtualMachines/win-01",
+            "resourceGroup": "myResourceGroup",
+            "resourceName": "win-01",
+            "resourceType": "Microsoft.Compute/virtualMachines"
+          }
+        ],
+        "id": "/subscriptions/830bd052-a220-404e-b150-8d8bd653d7a9/resourceGroups/myResourceGroup/providers/Microsoft.Compute/virtualMachines/win-01/extensions/AzureMonitorWindowsAgent",
+        "resourceGroup": "myResourceGroup",
+        "resourceName": "win-01/AzureMonitorWindowsAgent",
+        "resourceType": "Microsoft.Compute/virtualMachines/extensions"
+      },
+      {
+        "dependsOn": [
+          {
+            "id": "/subscriptions/830bd052-a220-404e-b150-8d8bd653d7a9/resourceGroups/myResourceGroup/providers/Microsoft.Compute/virtualMachines/linux-01",
+            "resourceGroup": "myResourceGroup",
+            "resourceName": "linux-01",
+            "resourceType": "Microsoft.Compute/virtualMachines"
+          }
+        ],
+        "id": "/subscriptions/830bd052-a220-404e-b150-8d8bd653d7a9/resourceGroups/myResourceGroup/providers/Microsoft.Compute/virtualMachines/linux-01/extensions/AzureMonitorLinuxAgent",
+        "resourceGroup": "myResourceGroup",
+        "resourceName": "linux-01/AzureMonitorLinuxAgent",
+        "resourceType": "Microsoft.Compute/virtualMachines/extensions"
+      },
+      {
+        "dependsOn": [
+          {
+            "id": "/subscriptions/830bd052-a220-404e-b150-8d8bd653d7a9/resourceGroups/myResourceGroup/providers/Microsoft.Compute/virtualMachines/win-01/extensions/AzureMonitorWindowsAgent",
+            "resourceGroup": "myResourceGroup",
+            "resourceName": "win-01/AzureMonitorWindowsAgent",
+            "resourceType": "Microsoft.Compute/virtualMachines/extensions"
+          },
+          {
+            "id": "/subscriptions/830bd052-a220-404e-b150-8d8bd653d7a9/resourceGroups/myResourceGroup/providers/Microsoft.Compute/virtualMachines/win-01",
+            "resourceGroup": "myResourceGroup",
+            "resourceName": "win-01",
+            "resourceType": "Microsoft.Compute/virtualMachines"
+          }
+        ],
+        "id": "/subscriptions/830bd052-a220-404e-b150-8d8bd653d7a9/resourceGroups/myResourceGroup/providers/Microsoft.Compute/virtualMachines/win-01/extensions/CustomScriptExtension",
+        "resourceGroup": "myResourceGroup",
+        "resourceName": "win-01/CustomScriptExtension",
+        "resourceType": "Microsoft.Compute/virtualMachines/extensions"
+      },
+      {
+        "dependsOn": [
+          {
+            "id": "/subscriptions/830bd052-a220-404e-b150-8d8bd653d7a9/resourceGroups/myResourceGroup/providers/Microsoft.Compute/virtualMachines/linux-01/extensions/AzureMonitorLinuxAgent",
+            "resourceGroup": "myResourceGroup",
+            "resourceName": "linux-01/AzureMonitorLinuxAgent",
+            "resourceType": "Microsoft.Compute/virtualMachines/extensions"
+          },
+          {
+            "id": "/subscriptions/830bd052-a220-404e-b150-8d8bd653d7a9/resourceGroups/myResourceGroup/providers/Microsoft.Compute/virtualMachines/linux-01",
+            "resourceGroup": "myResourceGroup",
+            "resourceName": "linux-01",
+            "resourceType": "Microsoft.Compute/virtualMachines"
+          }
+        ],
+        "id": "/subscriptions/830bd052-a220-404e-b150-8d8bd653d7a9/resourceGroups/myResourceGroup/providers/Microsoft.Compute/virtualMachines/linux-01/extensions/customScript",
+        "resourceGroup": "myResourceGroup",
+        "resourceName": "linux-01/customScript",
+        "resourceType": "Microsoft.Compute/virtualMachines/extensions"
+      },
+      {
+        "dependsOn": [
+          {
+            "id": "/subscriptions/830bd052-a220-404e-b150-8d8bd653d7a9/resourceGroups/myResourceGroup/providers/Microsoft.Compute/virtualMachines/win-01",
+            "resourceGroup": "myResourceGroup",
+            "resourceName": "win-01",
+            "resourceType": "Microsoft.Compute/virtualMachines"
+          }
+        ],
+        "id": "/subscriptions/830bd052-a220-404e-b150-8d8bd653d7a9/resourceGroups/myResourceGroup/providers/Microsoft.DevTestLab/schedules/shutdown-computevm-win-01",
+        "resourceGroup": "myResourceGroup",
+        "resourceName": "shutdown-computevm-win-01",
+        "resourceType": "Microsoft.DevTestLab/schedules"
+      },
+      {
+        "dependsOn": [
+          {
+            "id": "/subscriptions/830bd052-a220-404e-b150-8d8bd653d7a9/resourceGroups/myResourceGroup/providers/Microsoft.Compute/virtualMachines/linux-01",
+            "resourceGroup": "myResourceGroup",
+            "resourceName": "linux-01",
+            "resourceType": "Microsoft.Compute/virtualMachines"
+          }
+        ],
+        "id": "/subscriptions/830bd052-a220-404e-b150-8d8bd653d7a9/resourceGroups/myResourceGroup/providers/Microsoft.DevTestLab/schedules/shutdown-computevm-linux-01",
+        "resourceGroup": "myResourceGroup",
+        "resourceName": "shutdown-computevm-linux-01",
+        "resourceType": "Microsoft.DevTestLab/schedules"
+      },
+      {
+        "dependsOn": [
+          {
+            "id": "/subscriptions/830bd052-a220-404e-b150-8d8bd653d7a9/resourceGroups/myResourceGroup/providers/Microsoft.RecoveryServices/vaults/rsv-gelgpjf23ri44/backupPolicies/DailyBackupPolicy-dev",
+            "resourceGroup": "myResourceGroup",
+            "resourceName": "rsv-gelgpjf23ri44/DailyBackupPolicy-dev",
+            "resourceType": "Microsoft.RecoveryServices/vaults/backupPolicies"
+          },
+          {
+            "id": "/subscriptions/830bd052-a220-404e-b150-8d8bd653d7a9/resourceGroups/myResourceGroup/providers/Microsoft.RecoveryServices/vaults/rsv-gelgpjf23ri44",
+            "resourceGroup": "myResourceGroup",
+            "resourceName": "rsv-gelgpjf23ri44",
+            "resourceType": "Microsoft.RecoveryServices/vaults"
+          },
+          {
+            "id": "/subscriptions/830bd052-a220-404e-b150-8d8bd653d7a9/resourceGroups/myResourceGroup/providers/Microsoft.Compute/virtualMachines/win-01",
+            "resourceGroup": "myResourceGroup",
+            "resourceName": "win-01",
+            "resourceType": "Microsoft.Compute/virtualMachines"
+          }
+        ],
+        "id": "/subscriptions/830bd052-a220-404e-b150-8d8bd653d7a9/resourceGroups/myResourceGroup/providers/Microsoft.RecoveryServices/vaults/rsv-gelgpjf23ri44/backupFabrics/Azure/protectionContainers/iaasvmcontainerv2;myResourceGroup;win-01/protectedItems/vm;iaasvmcontainerv2;myResourceGroup;win-01",
+        "resourceGroup": "myResourceGroup",
+        "resourceName": "rsv-gelgpjf23ri44/Azure/iaasvmcontainerv2;myResourceGroup;win-01/vm;iaasvmcontainerv2;myResourceGroup;win-01",
+        "resourceType": "Microsoft.RecoveryServices/vaults/backupFabrics/protectionContainers/protectedItems"
+      },
+      {
+        "dependsOn": [
+          {
+            "id": "/subscriptions/830bd052-a220-404e-b150-8d8bd653d7a9/resourceGroups/myResourceGroup/providers/Microsoft.RecoveryServices/vaults/rsv-gelgpjf23ri44/backupPolicies/DailyBackupPolicy-dev",
+            "resourceGroup": "myResourceGroup",
+            "resourceName": "rsv-gelgpjf23ri44/DailyBackupPolicy-dev",
+            "resourceType": "Microsoft.RecoveryServices/vaults/backupPolicies"
+          },
+          {
+            "id": "/subscriptions/830bd052-a220-404e-b150-8d8bd653d7a9/resourceGroups/myResourceGroup/providers/Microsoft.RecoveryServices/vaults/rsv-gelgpjf23ri44",
+            "resourceGroup": "myResourceGroup",
+            "resourceName": "rsv-gelgpjf23ri44",
+            "resourceType": "Microsoft.RecoveryServices/vaults"
+          },
+          {
+            "id": "/subscriptions/830bd052-a220-404e-b150-8d8bd653d7a9/resourceGroups/myResourceGroup/providers/Microsoft.Compute/virtualMachines/linux-01",
+            "resourceGroup": "myResourceGroup",
+            "resourceName": "linux-01",
+            "resourceType": "Microsoft.Compute/virtualMachines"
+          }
+        ],
+        "id": "/subscriptions/830bd052-a220-404e-b150-8d8bd653d7a9/resourceGroups/myResourceGroup/providers/Microsoft.RecoveryServices/vaults/rsv-gelgpjf23ri44/backupFabrics/Azure/protectionContainers/iaasvmcontainerv2;myResourceGroup;linux-01/protectedItems/vm;iaasvmcontainerv2;myResourceGroup;linux-01",
+        "resourceGroup": "myResourceGroup",
+        "resourceName": "rsv-gelgpjf23ri44/Azure/iaasvmcontainerv2;myResourceGroup;linux-01/vm;iaasvmcontainerv2;myResourceGroup;linux-01",
+        "resourceType": "Microsoft.RecoveryServices/vaults/backupFabrics/protectionContainers/protectedItems"
+      }
+    ],
+    "diagnostics": null,
+    "duration": "PT0S",
+    "error": null,
+    "extensions": [],
+    "mode": "Incremental",
+    "onErrorDeployment": null,
+    "outputResources": null,
+    "outputs": null,
+    "parameters": {
+      "adminPassword": {
+        "type": "SecureString"
+      },
+      "adminUsername": {
+        "type": "String",
+        "value": "Promise1"
+      },
+      "autoShutDownTime": {
+        "type": "String",
+        "value": "1900"
+      },
+      "createNewNetwork": {
+        "type": "Bool",
+        "value": true
+      },
+      "dataCollectionRuleId": {
+        "type": "String",
+        "value": ""
+      },
+      "existingSubnetId": {
+        "type": "String",
+        "value": ""
+      },
+      "location": {
+        "type": "String",
+        "value": "eastus"
+      },
+      "logAnalyticsWorkspaceId": {
+        "type": "String",
+        "value": "/subscriptions/830bd052-a220-404e-b150-8d8bd653d7a9/resourcegroups/myresourcegroup/providers/microsoft.operationalinsights/workspaces/loganalytics1"
+      },
+      "prefix": {
+        "type": "String",
+        "value": "dev"
+      },
+      "tags": {
+        "type": "Object",
+        "value": {
+          "development": "true"
+        }
+      },
+      "vmConfigs": {
+        "type": "Array",
+        "value": [
+          {
+            "name": "win-01",
+            "osType": "Windows",
+            "script": "Write-Host \"Windows Setup Done\" | Out-File C://setup.txt",
+            "sshPublicKey": "",
+            "vmSize": "Standard_D2s_v3"
+          },
+          {
+            "name": "linux-01",
+            "osType": "Linux",
+            "script": "echo \"Linux Setup Done\" > /tmp/setup.txt",
+            "sshPublicKey": "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQC REPLACE_WITH_YOUR_REAL_PUBLIC_KEY",
+            "vmSize": "Standard_D2s_v3"
+          }
+        ]
+      },
+      "vnetAddressSpace": {
+        "type": "String",
+        "value": "10.0.0.0/16"
+      }
+    },
+    "parametersLink": null,
+    "providers": [
+      {
+        "id": null,
+        "namespace": "Microsoft.Network",
+        "providerAuthorizationConsentState": null,
+        "registrationPolicy": null,
+        "registrationState": null,
+        "resourceTypes": [
+          {
+            "aliases": null,
+            "apiProfiles": null,
+            "apiVersions": null,
+            "capabilities": null,
+            "defaultApiVersion": null,
+            "locationMappings": null,
+            "locations": [
+              "eastus"
+            ],
+            "properties": null,
+            "resourceType": "networkSecurityGroups",
+            "zoneMappings": null
+          },
+          {
+            "aliases": null,
+            "apiProfiles": null,
+            "apiVersions": null,
+            "capabilities": null,
+            "defaultApiVersion": null,
+            "locationMappings": null,
+            "locations": [
+              "eastus"
+            ],
+            "properties": null,
+            "resourceType": "virtualNetworks",
+            "zoneMappings": null
+          },
+          {
+            "aliases": null,
+            "apiProfiles": null,
+            "apiVersions": null,
+            "capabilities": null,
+            "defaultApiVersion": null,
+            "locationMappings": null,
+            "locations": [
+              null
+            ],
+            "properties": null,
+            "resourceType": "virtualNetworks/subnets",
+            "zoneMappings": null
+          },
+          {
+            "aliases": null,
+            "apiProfiles": null,
+            "apiVersions": null,
+            "capabilities": null,
+            "defaultApiVersion": null,
+            "locationMappings": null,
+            "locations": [
+              "eastus"
+            ],
+            "properties": null,
+            "resourceType": "publicIPAddresses",
+            "zoneMappings": null
+          },
+          {
+            "aliases": null,
+            "apiProfiles": null,
+            "apiVersions": null,
+            "capabilities": null,
+            "defaultApiVersion": null,
+            "locationMappings": null,
+            "locations": [
+              "eastus"
+            ],
+            "properties": null,
+            "resourceType": "bastionHosts",
+            "zoneMappings": null
+          },
+          {
+            "aliases": null,
+            "apiProfiles": null,
+            "apiVersions": null,
+            "capabilities": null,
+            "defaultApiVersion": null,
+            "locationMappings": null,
+            "locations": [
+              "eastus"
+            ],
+            "properties": null,
+            "resourceType": "networkInterfaces",
+            "zoneMappings": null
+          }
+        ]
+      },
+      {
+        "id": null,
+        "namespace": "Microsoft.Insights",
+        "providerAuthorizationConsentState": null,
+        "registrationPolicy": null,
+        "registrationState": null,
+        "resourceTypes": [
+          {
+            "aliases": null,
+            "apiProfiles": null,
+            "apiVersions": null,
+            "capabilities": null,
+            "defaultApiVersion": null,
+            "locationMappings": null,
+            "locations": [
+              null
+            ],
+            "properties": null,
+            "resourceType": "diagnosticSettings",
+            "zoneMappings": null
+          }
+        ]
+      },
+      {
+        "id": null,
+        "namespace": "Microsoft.Compute",
+        "providerAuthorizationConsentState": null,
+        "registrationPolicy": null,
+        "registrationState": null,
+        "resourceTypes": [
+          {
+            "aliases": null,
+            "apiProfiles": null,
+            "apiVersions": null,
+            "capabilities": null,
+            "defaultApiVersion": null,
+            "locationMappings": null,
+            "locations": [
+              "eastus"
+            ],
+            "properties": null,
+            "resourceType": "availabilitySets",
+            "zoneMappings": null
+          },
+          {
+            "aliases": null,
+            "apiProfiles": null,
+            "apiVersions": null,
+            "capabilities": null,
+            "defaultApiVersion": null,
+            "locationMappings": null,
+            "locations": [
+              "eastus"
+            ],
+            "properties": null,
+            "resourceType": "virtualMachines",
+            "zoneMappings": null
+          },
+          {
+            "aliases": null,
+            "apiProfiles": null,
+            "apiVersions": null,
+            "capabilities": null,
+            "defaultApiVersion": null,
+            "locationMappings": null,
+            "locations": [
+              "eastus"
+            ],
+            "properties": null,
+            "resourceType": "virtualMachines/extensions",
+            "zoneMappings": null
+          }
+        ]
+      },
+      {
+        "id": null,
+        "namespace": "Microsoft.RecoveryServices",
+        "providerAuthorizationConsentState": null,
+        "registrationPolicy": null,
+        "registrationState": null,
+        "resourceTypes": [
+          {
+            "aliases": null,
+            "apiProfiles": null,
+            "apiVersions": null,
+            "capabilities": null,
+            "defaultApiVersion": null,
+            "locationMappings": null,
+            "locations": [
+              "eastus"
+            ],
+            "properties": null,
+            "resourceType": "vaults",
+            "zoneMappings": null
+          },
+          {
+            "aliases": null,
+            "apiProfiles": null,
+            "apiVersions": null,
+            "capabilities": null,
+            "defaultApiVersion": null,
+            "locationMappings": null,
+            "locations": [
+              null
+            ],
+            "properties": null,
+            "resourceType": "vaults/backupPolicies",
+            "zoneMappings": null
+          },
+          {
+            "aliases": null,
+            "apiProfiles": null,
+            "apiVersions": null,
+            "capabilities": null,
+            "defaultApiVersion": null,
+            "locationMappings": null,
+            "locations": [
+              "eastus"
+            ],
+            "properties": null,
+            "resourceType": "vaults/backupFabrics/protectionContainers/protectedItems",
+            "zoneMappings": null
+          }
+        ]
+      },
+      {
+        "id": null,
+        "namespace": "Microsoft.DevTestLab",
+        "providerAuthorizationConsentState": null,
+        "registrationPolicy": null,
+        "registrationState": null,
+        "resourceTypes": [
+          {
+            "aliases": null,
+            "apiProfiles": null,
+            "apiVersions": null,
+            "capabilities": null,
+            "defaultApiVersion": null,
+            "locationMappings": null,
+            "locations": [
+              "eastus"
+            ],
+            "properties": null,
+            "resourceType": "schedules",
+            "zoneMappings": null
+          }
+        ]
+      }
+    ],
+    "provisioningState": "Succeeded",
+    "templateHash": "3941882853608681150",
+    "templateLink": null,
+    "timestamp": "2026-04-15T04:42:04.602125+00:00",
+    "validatedResources": [
+      {
+        "apiVersion": null,
+        "extension": null,
+        "id": "/subscriptions/830bd052-a220-404e-b150-8d8bd653d7a9/resourceGroups/myResourceGroup/providers/Microsoft.Compute/availabilitySets/dev-avset-linux",
+        "identifiers": null,
+        "resourceGroup": "myResourceGroup",
+        "resourceType": null
+      },
+      {
+        "apiVersion": null,
+        "extension": null,
+        "id": "/subscriptions/830bd052-a220-404e-b150-8d8bd653d7a9/resourceGroups/myResourceGroup/providers/Microsoft.Compute/availabilitySets/dev-avset-win",
+        "identifiers": null,
+        "resourceGroup": "myResourceGroup",
+        "resourceType": null
+      },
+      {
+        "apiVersion": null,
+        "extension": null,
+        "id": "/subscriptions/830bd052-a220-404e-b150-8d8bd653d7a9/resourceGroups/myResourceGroup/providers/Microsoft.Compute/virtualMachines/linux-01",
+        "identifiers": null,
+        "resourceGroup": "myResourceGroup",
+        "resourceType": null
+      },
+      {
+        "apiVersion": null,
+        "extension": null,
+        "id": "/subscriptions/830bd052-a220-404e-b150-8d8bd653d7a9/resourceGroups/myResourceGroup/providers/Microsoft.Compute/virtualMachines/linux-01/extensions/AzureMonitorLinuxAgent",
+        "identifiers": null,
+        "resourceGroup": "myResourceGroup",
+        "resourceType": null
+      },
+      {
+        "apiVersion": null,
+        "extension": null,
+        "id": "/subscriptions/830bd052-a220-404e-b150-8d8bd653d7a9/resourceGroups/myResourceGroup/providers/Microsoft.Compute/virtualMachines/linux-01/extensions/customScript",
+        "identifiers": null,
+        "resourceGroup": "myResourceGroup",
+        "resourceType": null
+      },
+      {
+        "apiVersion": null,
+        "extension": null,
+        "id": "/subscriptions/830bd052-a220-404e-b150-8d8bd653d7a9/resourceGroups/myResourceGroup/providers/Microsoft.Compute/virtualMachines/win-01",
+        "identifiers": null,
+        "resourceGroup": "myResourceGroup",
+        "resourceType": null
+      },
+      {
+        "apiVersion": null,
+        "extension": null,
+        "id": "/subscriptions/830bd052-a220-404e-b150-8d8bd653d7a9/resourceGroups/myResourceGroup/providers/Microsoft.Compute/virtualMachines/win-01/extensions/AzureMonitorWindowsAgent",
+        "identifiers": null,
+        "resourceGroup": "myResourceGroup",
+        "resourceType": null
+      },
+      {
+        "apiVersion": null,
+        "extension": null,
+        "id": "/subscriptions/830bd052-a220-404e-b150-8d8bd653d7a9/resourceGroups/myResourceGroup/providers/Microsoft.Compute/virtualMachines/win-01/extensions/CustomScriptExtension",
+        "identifiers": null,
+        "resourceGroup": "myResourceGroup",
+        "resourceType": null
+      },
+      {
+        "apiVersion": null,
+        "extension": null,
+        "id": "/subscriptions/830bd052-a220-404e-b150-8d8bd653d7a9/resourceGroups/myResourceGroup/providers/Microsoft.DevTestLab/schedules/shutdown-computevm-linux-01",
+        "identifiers": null,
+        "resourceGroup": "myResourceGroup",
+        "resourceType": null
+      },
+      {
+        "apiVersion": null,
+        "extension": null,
+        "id": "/subscriptions/830bd052-a220-404e-b150-8d8bd653d7a9/resourceGroups/myResourceGroup/providers/Microsoft.DevTestLab/schedules/shutdown-computevm-win-01",
+        "identifiers": null,
+        "resourceGroup": "myResourceGroup",
+        "resourceType": null
+      },
+      {
+        "apiVersion": null,
+        "extension": null,
+        "id": "/subscriptions/830bd052-a220-404e-b150-8d8bd653d7a9/resourceGroups/myResourceGroup/providers/Microsoft.Network/bastionHosts/dev-bastionHost",
+        "identifiers": null,
+        "resourceGroup": "myResourceGroup",
+        "resourceType": null
+      },
+      {
+        "apiVersion": null,
+        "extension": null,
+        "id": "/subscriptions/830bd052-a220-404e-b150-8d8bd653d7a9/resourceGroups/myResourceGroup/providers/Microsoft.Network/networkInterfaces/linux-01-nic",
+        "identifiers": null,
+        "resourceGroup": "myResourceGroup",
+        "resourceType": null
+      },
+      {
+        "apiVersion": null,
+        "extension": null,
+        "id": "/subscriptions/830bd052-a220-404e-b150-8d8bd653d7a9/resourceGroups/myResourceGroup/providers/Microsoft.Network/networkInterfaces/win-01-nic",
+        "identifiers": null,
+        "resourceGroup": "myResourceGroup",
+        "resourceType": null
+      },
+      {
+        "apiVersion": null,
+        "extension": null,
+        "id": "/subscriptions/830bd052-a220-404e-b150-8d8bd653d7a9/resourceGroups/myResourceGroup/providers/Microsoft.Network/networkSecurityGroups/dev-nsg",
+        "identifiers": null,
+        "resourceGroup": "myResourceGroup",
+        "resourceType": null
+      },
+      {
+        "apiVersion": null,
+        "extension": null,
+        "id": "/subscriptions/830bd052-a220-404e-b150-8d8bd653d7a9/resourceGroups/myResourceGroup/providers/Microsoft.Network/networkSecurityGroups/dev-nsg/providers/Microsoft.Insights/diagnosticSettings/nsgToLogAnalytics",
+        "identifiers": null,
+        "resourceGroup": "myResourceGroup",
+        "resourceType": null
+      },
+      {
+        "apiVersion": null,
+        "extension": null,
+        "id": "/subscriptions/830bd052-a220-404e-b150-8d8bd653d7a9/resourceGroups/myResourceGroup/providers/Microsoft.Network/publicIPAddresses/dev-bastion-pip",
+        "identifiers": null,
+        "resourceGroup": "myResourceGroup",
+        "resourceType": null
+      },
+      {
+        "apiVersion": null,
+        "extension": null,
+        "id": "/subscriptions/830bd052-a220-404e-b150-8d8bd653d7a9/resourceGroups/myResourceGroup/providers/Microsoft.Network/virtualNetworks/dev-vnet",
+        "identifiers": null,
+        "resourceGroup": "myResourceGroup",
+        "resourceType": null
+      },
+      {
+        "apiVersion": null,
+        "extension": null,
+        "id": "/subscriptions/830bd052-a220-404e-b150-8d8bd653d7a9/resourceGroups/myResourceGroup/providers/Microsoft.Network/virtualNetworks/dev-vnet/subnets/AzureBastionSubnet",
+        "identifiers": null,
+        "resourceGroup": "myResourceGroup",
+        "resourceType": null
+      },
+      {
+        "apiVersion": null,
+        "extension": null,
+        "id": "/subscriptions/830bd052-a220-404e-b150-8d8bd653d7a9/resourceGroups/myResourceGroup/providers/Microsoft.Network/virtualNetworks/dev-vnet/subnets/compute-subnet",
+        "identifiers": null,
+        "resourceGroup": "myResourceGroup",
+        "resourceType": null
+      },
+      {
+        "apiVersion": null,
+        "extension": null,
+        "id": "/subscriptions/830bd052-a220-404e-b150-8d8bd653d7a9/resourceGroups/myResourceGroup/providers/Microsoft.RecoveryServices/vaults/rsv-gelgpjf23ri44",
+        "identifiers": null,
+        "resourceGroup": "myResourceGroup",
+        "resourceType": null
+      },
+      {
+        "apiVersion": null,
+        "extension": null,
+        "id": "/subscriptions/830bd052-a220-404e-b150-8d8bd653d7a9/resourceGroups/myResourceGroup/providers/Microsoft.RecoveryServices/vaults/rsv-gelgpjf23ri44/backupFabrics/Azure/protectionContainers/iaasvmcontainerv2;myResourceGroup;linux-01/protectedItems/vm;iaasvmcontainerv2;myResourceGroup;linux-01",
+        "identifiers": null,
+        "resourceGroup": "myResourceGroup",
+        "resourceType": null
+      },
+      {
+        "apiVersion": null,
+        "extension": null,
+        "id": "/subscriptions/830bd052-a220-404e-b150-8d8bd653d7a9/resourceGroups/myResourceGroup/providers/Microsoft.RecoveryServices/vaults/rsv-gelgpjf23ri44/backupFabrics/Azure/protectionContainers/iaasvmcontainerv2;myResourceGroup;win-01/protectedItems/vm;iaasvmcontainerv2;myResourceGroup;win-01",
+        "identifiers": null,
+        "resourceGroup": "myResourceGroup",
+        "resourceType": null
+      },
+      {
+        "apiVersion": null,
+        "extension": null,
+        "id": "/subscriptions/830bd052-a220-404e-b150-8d8bd653d7a9/resourceGroups/myResourceGroup/providers/Microsoft.RecoveryServices/vaults/rsv-gelgpjf23ri44/backupPolicies/DailyBackupPolicy-dev",
+        "identifiers": null,
+        "resourceGroup": "myResourceGroup",
+        "resourceType": null
+      }
+    ],
+    "validationLevel": null
+  },
+  "resourceGroup": "myResourceGroup",
+  "type": "Microsoft.Resources/deployments"
+}
+

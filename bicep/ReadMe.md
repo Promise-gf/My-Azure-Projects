@@ -1,12 +1,3 @@
-Congratulations! Getting that `"status": "Succeeded"` after navigating Gen2 images, Enhanced V2 backup policies, and Bicep compiler edge cases is a massive achievement. You didn't just write a script; you wrestled with the Azure ARM engine and won.
-
-Here is a highly professional, portfolio-ready `README.md` that highlights the advanced architecture, the real-world problems it solves, and the deep Azure knowledge required to build it.
-
-Save this as `README.md` in your repository:
-
----
-
-````markdown
 # 🛡️ Azure Enterprise Secure VM Factory
 
 A battle-tested, production-grade Azure Bicep template for deploying highly secure, resilient, and observable Virtual Machines.

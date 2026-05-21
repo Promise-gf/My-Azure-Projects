@@ -346,11 +346,11 @@ az network nsg show \
 
 _Portfolio project demonstrating production-grade Azure network engineering with Terraform — covering zero-trust network design, modular IaC patterns, private connectivity, remote state management, and enterprise security hardening._
 
-https://github.com/Promise-gf/My-Azure-Projects/blob/main/images/Screenshot%20(338).png
-https://github.com/Promise-gf/My-Azure-Projects/blob/main/images/Screenshot%20(339).png
-https://github.com/Promise-gf/My-Azure-Projects/blob/main/images/Screenshot%20(343).png
-https://github.com/Promise-gf/My-Azure-Projects/blob/main/images/Screenshot%20(344).png
-https://github.com/Promise-gf/My-Azure-Projects/blob/main/images/Screenshot%20(345).png
-https://github.com/Promise-gf/My-Azure-Projects/blob/main/images/Screenshot%20(346).png
-https://github.com/Promise-gf/My-Azure-Projects/blob/main/images/Screenshot%20(347).png
-https://github.com/Promise-gf/My-Azure-Projects/blob/main/images/Screenshot%20(348).png
+![Resource Group](../../images/Screenshot%20(338).png)
+![Network Topology](../../images/Screenshot%20(339).png)
+![NSG Rules](../../images/Screenshot%20(343).png)
+![Private Endpoint](../../images/Screenshot%20(344).png)
+![DNS Zone](../../images/Screenshot%20(345).png)
+![Firewall Logs](../../images/Screenshot%20(346).png)
+![Bastion Access](../../images/Screenshot%20(347).png)
+![Key Vault](../../images/Screenshot%20(348).png)

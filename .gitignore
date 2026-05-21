@@ -1,10 +1,16 @@
-# Terraform
-*.tfvars
-*.tfvars.json
-.terraform/
-.terraform.lock.hcl
-terraform.tfstate
-terraform.tfstate.backup
+# Ignore Storage Architecture
+Terraform/Storage Architecture/
+
+# Terraform sensitive files
+**/*.tfvars
+**/*.tfstate
+**/*.tfstate.backup
+**/.terraform/
+**/.terraform.lock.hcl
 crash.log
-override.tf
-override.tf.json
+*.pem
+*.key
+
+# System files
+.DS_Store
+packages-microsoft-prod.deb

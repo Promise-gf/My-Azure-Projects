@@ -1,0 +1,8 @@
+{
+  "contentVersion": "1.0.0.0",
+  "parameters": {
+    "location": { "value": "eastus" },
+    "environment": { "value": "Dev" },
+    "enableVpn": { "value": false }
+  }
+}

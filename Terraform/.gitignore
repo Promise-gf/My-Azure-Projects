@@ -1,0 +1,12 @@
+# Ignore Storage Architecture
+Storage Architecture/
+
+# Terraform sensitive files
+*.tfvars
+*.tfstate
+*.tfstate.backup
+.terraform/
+.terraform.lock.hcl
+crash.log
+*.pem
+*.key

@@ -1,0 +1,9 @@
+{
+  "terraform.languageServer.experimentalFeatures": {
+    "validateOnSave": true
+  },
+  "terraform.languageServer.rootModules": [
+    "environments/dev",
+    "environments/prod"
+  ]
+}

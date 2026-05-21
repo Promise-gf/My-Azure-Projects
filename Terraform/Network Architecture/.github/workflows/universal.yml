@@ -1,0 +1,400 @@
+# ─────────────────────────────────────────────────────────────────────────────
+# Universal Azure Pipeline — v10
+# Changes v10: added environment: azure-deploy to test and deploy jobs
+#              so OIDC subject matches the federated credential.
+# ─────────────────────────────────────────────────────────────────────────────
+
+name: Universal Azure Pipeline
+
+on:
+  workflow_dispatch:
+    inputs:
+
+      # ── Execution mode ──────────────────────────────────────────────────
+      mode:
+        description: "Execution mode: script | bicep"
+        required: true
+        type: choice
+        options: [script, bicep]
+
+      # ── Script options ───────────────────────────────────────────────
+      script_name:
+        description: "Script file path (e.g. scripts/deploy.sh)"
+        required: false
+      script_type:
+        description: "Script runtime: bash | powershell | python"
+        required: false
+        type: choice
+        options: [bash, powershell, python]
+
+      # ── Bicep options ────────────────────────────────────────────────
+      bicep_file:
+        description: "Bicep template path (e.g. infra/main.bicep)"
+        required: false
+      bicep_params:
+        description: "Bicep parameters file (e.g. infra/params.dev.json) — optional"
+        required: false
+        default: ""
+
+      # ── Target environment ───────────────────────────────────────────
+      environment:
+        description: "Target environment"
+        required: true
+        type: choice
+        options: [dev, staging, prod]
+
+      # ── Resource group (optional) ────────────────────────────────────
+      resource_group:
+        description: "Azure resource group name (leave blank if not applicable e.g. Entra ID)"
+        required: false
+        default: ""
+
+      location:
+        description: "Azure region (e.g. eastus, westeurope) — required if resource_group is set"
+        required: false
+        default: "eastus"
+
+# ── Concurrency: serialise runs per environment ───────────────────────────────
+concurrency:
+  group: azure-pipeline-${{ inputs.environment }}
+  cancel-in-progress: false
+
+jobs:
+
+  # ────────────────────────────────────────────────────────────────────────────
+  # Job 1: BUILD
+  # Validates inputs and performs offline checks (no Azure auth needed).
+  # ────────────────────────────────────────────────────────────────────────────
+  build:
+    name: "Build [${{ inputs.environment }}]"
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+    env:
+      FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Validate inputs
+        run: |
+          ERR=0
+          if [[ "${{ inputs.mode }}" == "script" ]]; then
+            [[ -z "${{ inputs.script_name }}" ]] && echo "::error::script_name required for mode=script" && ERR=1
+            [[ -z "${{ inputs.script_type }}" ]] && echo "::error::script_type required for mode=script" && ERR=1
+          fi
+          [[ "${{ inputs.mode }}" == "bicep" && -z "${{ inputs.bicep_file }}" ]] \
+            && echo "::error::bicep_file required for mode=bicep" && ERR=1
+          [[ $ERR -eq 0 ]] || exit 1
+
+      # ── Bicep ────────────────────────────────────────────────────────
+      - name: "[bicep] Compile Bicep template"
+        if: ${{ inputs.mode == 'bicep' }}
+        run: |
+          az bicep build --file "${{ inputs.bicep_file }}"
+          echo "✅ Bicep compiled successfully."
+
+      # ── Bash ─────────────────────────────────────────────────────────
+      - name: "[bash] Syntax check"
+        if: ${{ inputs.mode == 'script' && inputs.script_type == 'bash' }}
+        run: |
+          [[ -f "${{ inputs.script_name }}" ]] \
+            || { echo "::error::Script not found: ${{ inputs.script_name }}"; exit 1; }
+          bash -n "${{ inputs.script_name }}"
+          echo "✅ Bash syntax check passed."
+
+      # ── PowerShell ───────────────────────────────────────────────────
+      - name: "[powershell] Install PowerShell"
+        if: ${{ inputs.mode == 'script' && inputs.script_type == 'powershell' }}
+        run: |
+          sudo apt-get update -q
+          sudo apt-get install -y powershell
+
+      - name: "[powershell] Parse check"
+        if: ${{ inputs.mode == 'script' && inputs.script_type == 'powershell' }}
+        run: |
+          [[ -f "${{ inputs.script_name }}" ]] \
+            || { echo "::error::Script not found: ${{ inputs.script_name }}"; exit 1; }
+          pwsh -Command "
+            \$errors = @()
+            \$null = [System.Management.Automation.Language.Parser]::ParseFile(
+              '${{ inputs.script_name }}', [ref]\$null, [ref]\$errors
+            )
+            if (\$errors.Count -gt 0) {
+              \$errors | ForEach-Object { Write-Error \$_.Message }
+              exit 1
+            }
+            Write-Host '✅ PowerShell parse check passed.'
+          "
+
+      # ── Python ───────────────────────────────────────────────────────
+      - name: "[python] Syntax check"
+        if: ${{ inputs.mode == 'script' && inputs.script_type == 'python' }}
+        run: |
+          [[ -f "${{ inputs.script_name }}" ]] \
+            || { echo "::error::Script not found: ${{ inputs.script_name }}"; exit 1; }
+          python3 -m py_compile "${{ inputs.script_name }}"
+          echo "✅ Python syntax check passed."
+
+      - name: Collect build logs
+        if: always()
+        run: |
+          mkdir -p build-logs
+          echo "run_id:      ${{ github.run_id }}"            >> build-logs/summary.txt
+          echo "run_number:  ${{ github.run_number }}"        >> build-logs/summary.txt
+          echo "actor:       ${{ github.actor }}"             >> build-logs/summary.txt
+          echo "mode:        ${{ inputs.mode }}"              >> build-logs/summary.txt
+          echo "script_type: ${{ inputs.script_type }}"       >> build-logs/summary.txt
+          echo "env:         ${{ inputs.environment }}"       >> build-logs/summary.txt
+          echo "timestamp:   $(date -u +%Y-%m-%dT%H:%M:%SZ)" >> build-logs/summary.txt
+
+      - name: Upload build logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: "build-logs-${{ inputs.environment }}-${{ github.run_number }}"
+          path: build-logs/
+          retention-days: 30
+
+
+  # ────────────────────────────────────────────────────────────────────────────
+  # Job 2: TEST
+  # Authenticates with Azure via OIDC and does a live dry-run.
+  # ────────────────────────────────────────────────────────────────────────────
+  test:
+    name: "Test [${{ inputs.environment }}]"
+    needs: build
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    environment: azure-deploy        # ← OIDC subject must match this
+    permissions:
+      id-token: write
+      contents: read
+    env:
+      FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Authenticate with Azure
+        uses: azure/login@v2
+        with:
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          enable-AzPSSession: true
+
+      # ── Bicep ────────────────────────────────────────────────────────
+      - name: "[bicep] What-if at resource group scope"
+        if: ${{ inputs.mode == 'bicep' && inputs.resource_group != '' }}
+        run: |
+          PARAMS_ARG=""
+          [[ -n "${{ inputs.bicep_params }}" ]] && PARAMS_ARG="--parameters @${{ inputs.bicep_params }}"
+          az deployment group what-if \
+            --resource-group "${{ inputs.resource_group }}" \
+            --template-file "${{ inputs.bicep_file }}" \
+            $PARAMS_ARG
+          echo "✅ What-if (RG scope) completed."
+
+      - name: "[bicep] What-if at subscription scope"
+        if: ${{ inputs.mode == 'bicep' && inputs.resource_group == '' }}
+        run: |
+          PARAMS_ARG=""
+          [[ -n "${{ inputs.bicep_params }}" ]] && PARAMS_ARG="--parameters @${{ inputs.bicep_params }}"
+          az deployment sub what-if \
+            --location "${{ inputs.location }}" \
+            --template-file "${{ inputs.bicep_file }}" \
+            $PARAMS_ARG
+          echo "✅ What-if (subscription scope) completed."
+
+      # ── Bash ─────────────────────────────────────────────────────────
+      - name: "[bash] Dry-run"
+        if: ${{ inputs.mode == 'script' && inputs.script_type == 'bash' }}
+        env:
+          DRY_RUN: "true"
+        run: |
+          chmod +x "${{ inputs.script_name }}"
+          ./"${{ inputs.script_name }}"
+          echo "✅ Bash dry-run completed."
+
+      # ── PowerShell ───────────────────────────────────────────────────
+      - name: "[powershell] Install PowerShell & Modules"
+        if: ${{ inputs.mode == 'script' && inputs.script_type == 'powershell' }}
+        run: |
+          sudo apt-get update -q
+          sudo apt-get install -y powershell
+          pwsh -Command "Install-Module -Name Az, Microsoft.Graph -Scope CurrentUser -Force -AllowClobber"
+
+      - name: "[powershell] Dry-run"
+        if: ${{ inputs.mode == 'script' && inputs.script_type == 'powershell' }}
+        env:
+          DRY_RUN: "true"
+          AZURE_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
+          AZURE_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+          AZURE_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
+          USER_PASSWORD: ${{ secrets.USER_PASSWORD }}
+          ACTIONS_ID_TOKEN_REQUEST_URL: ${{ env.ACTIONS_ID_TOKEN_REQUEST_URL }}
+          ACTIONS_ID_TOKEN_REQUEST_TOKEN: ${{ env.ACTIONS_ID_TOKEN_REQUEST_TOKEN }}
+        run: |
+          pwsh -File "${{ inputs.script_name }}"
+          echo "✅ PowerShell dry-run completed."
+
+      # ── Python ───────────────────────────────────────────────────────
+      - name: "[python] Dry-run"
+        if: ${{ inputs.mode == 'script' && inputs.script_type == 'python' }}
+        env:
+          DRY_RUN: "true"
+        run: |
+          python3 "${{ inputs.script_name }}"
+          echo "✅ Python dry-run completed."
+
+      - name: Collect test logs
+        if: always()
+        run: |
+          mkdir -p test-logs
+          echo "run_id:      ${{ github.run_id }}"            >> test-logs/summary.txt
+          echo "run_number:  ${{ github.run_number }}"        >> test-logs/summary.txt
+          echo "actor:       ${{ github.actor }}"             >> test-logs/summary.txt
+          echo "mode:        ${{ inputs.mode }}"              >> test-logs/summary.txt
+          echo "script_type: ${{ inputs.script_type }}"       >> test-logs/summary.txt
+          echo "env:         ${{ inputs.environment }}"       >> test-logs/summary.txt
+          echo "timestamp:   $(date -u +%Y-%m-%dT%H:%M:%SZ)" >> test-logs/summary.txt
+
+      - name: Upload test logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: "test-logs-${{ inputs.environment }}-${{ github.run_number }}"
+          path: test-logs/
+          retention-days: 30
+
+
+  # ────────────────────────────────────────────────────────────────────────────
+  # Job 3: DEPLOY
+  # Runs only after test passes. Executes real changes against Azure.
+  # ────────────────────────────────────────────────────────────────────────────
+  deploy:
+    name: "Deploy [${{ inputs.environment }}] (${{ inputs.mode }})"
+    needs: test
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    environment: azure-deploy        # ← OIDC subject must match this
+    permissions:
+      id-token: write
+      contents: read
+    env:
+      FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Authenticate with Azure
+        uses: azure/login@v2
+        with:
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          enable-AzPSSession: true
+
+      # ── Bicep ────────────────────────────────────────────────────────
+      - name: "[bicep] Create resource group"
+        if: ${{ inputs.mode == 'bicep' && inputs.resource_group != '' }}
+        run: |
+          for i in {1..3}; do
+            az group create \
+              --name "${{ inputs.resource_group }}" \
+              --location "${{ inputs.location }}" \
+              --tags environment="${{ inputs.environment }}" \
+            && break \
+            || { echo "::warning::az group create attempt $i failed — retrying in 10s"; sleep 10; }
+          done
+
+      - name: "[bicep] Deploy at resource group scope"
+        if: ${{ inputs.mode == 'bicep' && inputs.resource_group != '' }}
+        run: |
+          PARAMS_ARG=""
+          [[ -n "${{ inputs.bicep_params }}" ]] && PARAMS_ARG="--parameters @${{ inputs.bicep_params }}"
+          for i in {1..3}; do
+            az deployment group create \
+              --resource-group "${{ inputs.resource_group }}" \
+              --template-file "${{ inputs.bicep_file }}" \
+              $PARAMS_ARG \
+              --name "deploy-${{ inputs.environment }}-${{ github.run_number }}" \
+            && break \
+            || { echo "::warning::Deployment attempt $i failed — retrying in 10s"; sleep 10; }
+          done
+
+      - name: "[bicep] Deploy at subscription scope"
+        if: ${{ inputs.mode == 'bicep' && inputs.resource_group == '' }}
+        run: |
+          PARAMS_ARG=""
+          [[ -n "${{ inputs.bicep_params }}" ]] && PARAMS_ARG="--parameters @${{ inputs.bicep_params }}"
+          for i in {1..3}; do
+            az deployment sub create \
+              --location "${{ inputs.location }}" \
+              --template-file "${{ inputs.bicep_file }}" \
+              $PARAMS_ARG \
+              --name "deploy-${{ inputs.environment }}-${{ github.run_number }}" \
+            && break \
+            || { echo "::warning::Deployment attempt $i failed — retrying in 10s"; sleep 10; }
+          done
+
+      # ── Bash ─────────────────────────────────────────────────────────
+      - name: "[bash] Run script"
+        if: ${{ inputs.mode == 'script' && inputs.script_type == 'bash' }}
+        run: |
+          chmod +x "${{ inputs.script_name }}"
+          ./"${{ inputs.script_name }}"
+
+      # ── PowerShell ───────────────────────────────────────────────────
+      - name: "[powershell] Install PowerShell & Modules"
+        if: ${{ inputs.mode == 'script' && inputs.script_type == 'powershell' }}
+        run: |
+          sudo apt-get update -q
+          sudo apt-get install -y powershell
+          pwsh -Command "Install-Module -Name Az, Microsoft.Graph -Scope CurrentUser -Force -AllowClobber"
+
+      - name: "[powershell] Run script"
+        if: ${{ inputs.mode == 'script' && inputs.script_type == 'powershell' }}
+        env:
+          AZURE_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
+          AZURE_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+          AZURE_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
+          USER_PASSWORD: ${{ secrets.USER_PASSWORD }}
+          ACTIONS_ID_TOKEN_REQUEST_URL: ${{ env.ACTIONS_ID_TOKEN_REQUEST_URL }}
+          ACTIONS_ID_TOKEN_REQUEST_TOKEN: ${{ env.ACTIONS_ID_TOKEN_REQUEST_TOKEN }}
+        run: |
+          pwsh -File "${{ inputs.script_name }}"
+
+      # ── Python ───────────────────────────────────────────────────────
+      - name: "[python] Run script"
+        if: ${{ inputs.mode == 'script' && inputs.script_type == 'python' }}
+        run: |
+          python3 "${{ inputs.script_name }}"
+
+      # ── Logs ─────────────────────────────────────────────────────────
+      - name: Collect deployment logs
+        if: always()
+        run: |
+          mkdir -p deploy-logs
+          echo "run_id:      ${{ github.run_id }}"            >> deploy-logs/summary.txt
+          echo "run_number:  ${{ github.run_number }}"        >> deploy-logs/summary.txt
+          echo "actor:       ${{ github.actor }}"             >> deploy-logs/summary.txt
+          echo "mode:        ${{ inputs.mode }}"              >> deploy-logs/summary.txt
+          echo "script_type: ${{ inputs.script_type }}"       >> deploy-logs/summary.txt
+          echo "env:         ${{ inputs.environment }}"       >> deploy-logs/summary.txt
+          echo "rg:          ${{ inputs.resource_group }}"    >> deploy-logs/summary.txt
+          echo "ref:         ${{ github.ref }}"               >> deploy-logs/summary.txt
+          echo "timestamp:   $(date -u +%Y-%m-%dT%H:%M:%SZ)" >> deploy-logs/summary.txt
+
+      - name: Upload deployment logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: "deploy-logs-${{ inputs.environment }}-${{ github.run_number }}"
+          path: deploy-logs/
+          retention-days: 30

@@ -1,0 +1,64 @@
+name: Terraform Plan
+
+on:
+  pull_request:
+    branches:
+      - main
+    paths:
+      - '**.tf'
+      - '**.tfvars'
+
+jobs:
+  terraform-plan:
+    name: Fmt · Validate · Plan
+    runs-on: ubuntu-latest
+    environment: production
+    env:
+      ARM_CLIENT_ID:             ${{ secrets.ARM_CLIENT_ID }}
+      ARM_CLIENT_SECRET:         ${{ secrets.ARM_CLIENT_SECRET }}
+      ARM_SUBSCRIPTION_ID:       ${{ secrets.ARM_SUBSCRIPTION_ID }}
+      ARM_TENANT_ID:             ${{ secrets.ARM_TENANT_ID }}
+      TF_VAR_vpn_root_cert_data: ${{ secrets.TF_VAR_VPN_ROOT_CERT_DATA }}
+      FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4.2.2
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3.1.2
+        with:
+          terraform_version: 1.7.0
+
+      - name: Terraform Format Check
+        run: terraform fmt -check -recursive
+
+      - name: Terraform Init
+        run: |
+          terraform init \
+            -backend-config="resource_group_name=rg-tfstate" \
+            -backend-config="storage_account_name=${{ secrets.BACKEND_STORAGE_ACCOUNT }}" \
+            -backend-config="container_name=tfstate" \
+            -backend-config="key=network.terraform.tfstate"
+
+      - name: Terraform Validate
+        run: terraform validate
+
+      - name: Run tfsec Security Scan
+        uses: aquasecurity/tfsec-action@v1.0.0
+        with:
+          soft_fail: true
+
+      - name: Terraform Plan
+        run: |
+          terraform plan \
+            -var-file="terraform.tfvars" \
+            -no-color \
+            -out=tfplan
+
+      - name: Upload Plan Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: tfplan
+          path: tfplan
+          retention-days: 5

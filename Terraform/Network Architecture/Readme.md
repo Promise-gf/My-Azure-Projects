@@ -26,17 +26,17 @@
 
 ## The Solution
 
-| Problem | Solution |
-|---------|----------|
-| Storage reachable from public internet | Private Endpoint — blob traffic never leaves the Microsoft backbone |
-| SSH ports exposed to the internet | Azure Bastion (no open ports) + VPN Gateway provisioned for tunnel access |
-| Sensitive data traversing public internet | Private DNS Zone resolves storage to internal RFC 1918 IP automatically |
-| No traffic segmentation between tiers | Dedicated subnets per tier with dynamically generated, tiered NSG rules |
-| Inconsistent resource naming | Centralised `locals` block generates standardised names across all 60+ resources |
-| Monolithic infrastructure code | 9 fully decoupled Terraform modules — each independently updateable |
-| No audit trail or monitoring | Log Analytics Workspace with diagnostic settings on all critical resources |
-| Secrets in `.env` files | Azure Key Vault with RBAC authorisation and network-restricted access |
-| State file on developer laptop | Remote state in Azure Blob Storage with encryption at rest and lease-based locking |
+| Problem                                   | Solution                                                                           |
+| ----------------------------------------- | ---------------------------------------------------------------------------------- |
+| Storage reachable from public internet    | Private Endpoint — blob traffic never leaves the Microsoft backbone                |
+| SSH ports exposed to the internet         | Azure Bastion (no open ports) + VPN Gateway provisioned for tunnel access          |
+| Sensitive data traversing public internet | Private DNS Zone resolves storage to internal RFC 1918 IP automatically            |
+| No traffic segmentation between tiers     | Dedicated subnets per tier with dynamically generated, tiered NSG rules            |
+| Inconsistent resource naming              | Centralised `locals` block generates standardised names across all 60+ resources   |
+| Monolithic infrastructure code            | 9 fully decoupled Terraform modules — each independently updateable                |
+| No audit trail or monitoring              | Log Analytics Workspace with diagnostic settings on all critical resources         |
+| Secrets in `.env` files                   | Azure Key Vault with RBAC authorisation and network-restricted access              |
+| State file on developer laptop            | Remote state in Azure Blob Storage with encryption at rest and lease-based locking |
 
 ---
 
@@ -96,14 +96,14 @@
 
 ### Traffic Flow
 
-| Path | Travels Over Public Internet? | Mechanism |
-|------|-------------------------------|-----------|
-| User → Web tier (80/443) | ✅ Intentional | NSG inbound allow |
-| Web → App (8080) | ❌ Private only | NSG source CIDR restrict |
-| App → Database (1433) | ❌ Private only | NSG source CIDR restrict |
-| App → Blob Storage | ❌ Private only | Private Endpoint (10.10.4.4) |
-| Engineer → VMs | ❌ Private only | VPN tunnel → private subnet |
-| Spoke → Hub resources | ❌ Private only | VNet Peering + Gateway Transit |
+| Path                     | Travels Over Public Internet? | Mechanism                      |
+| ------------------------ | ----------------------------- | ------------------------------ |
+| User → Web tier (80/443) | ✅ Intentional                | NSG inbound allow              |
+| Web → App (8080)         | ❌ Private only               | NSG source CIDR restrict       |
+| App → Database (1433)    | ❌ Private only               | NSG source CIDR restrict       |
+| App → Blob Storage       | ❌ Private only               | Private Endpoint (10.10.4.4)   |
+| Engineer → VMs           | ❌ Private only               | VPN tunnel → private subnet    |
+| Spoke → Hub resources    | ❌ Private only               | VNet Peering + Gateway Transit |
 
 ---
 
@@ -301,37 +301,37 @@ az network nsg show \
 
 ## Resources Deployed
 
-| Resource | Name Pattern | Purpose |
-|----------|-------------|---------|
-| Hub VNet | `corp-prod-vnet-hub-cus` | Core network housing all shared infrastructure |
-| Spoke VNet | `corp-prod-vnet-spoke-cus` | Isolated workload boundary |
-| NSG — Web | `corp-prod-nsg-web-cus` | HTTP/HTTPS inbound; denies all else |
-| NSG — App | `corp-prod-nsg-app-cus` | Port 8080 from Web subnet only |
-| NSG — Database | `corp-prod-nsg-db-cus` | SQL 1433 from App subnet only |
-| NSG — Spoke | `corp-prod-nsg-spoke-cus` | Inbound from Hub VNet prefix only |
-| Storage Account | `corpprodstxxxxxxxx` | Blob storage — public access fully disabled |
-| Private Endpoint | `corp-prod-pe-storage-cus` | Maps storage to internal IP 10.10.4.4 |
-| Private DNS Zone | `privatelink.blob.core.windows.net` | Auto-linked to Hub and Spoke |
-| VPN Gateway | `corp-prod-vpngw-cus` | Point-to-Site VPN (provisioned) |
-| Azure Bastion | `corp-prod-bas-cus` | Browser-based VM access — no ports open |
-| Azure Firewall | `corp-prod-afw-cus` | Outbound traffic inspection |
-| Key Vault | `corp-prod-kv-cus` | Secrets and certificates — RBAC + network restricted |
-| Log Analytics | `corp-prod-law-cus` | Central sink for all diagnostic data |
-| Remote State | `tfstatexxxxxxxx` | Terraform state — encrypted, versioned, lease-locked |
+| Resource         | Name Pattern                        | Purpose                                              |
+| ---------------- | ----------------------------------- | ---------------------------------------------------- |
+| Hub VNet         | `corp-prod-vnet-hub-cus`            | Core network housing all shared infrastructure       |
+| Spoke VNet       | `corp-prod-vnet-spoke-cus`          | Isolated workload boundary                           |
+| NSG — Web        | `corp-prod-nsg-web-cus`             | HTTP/HTTPS inbound; denies all else                  |
+| NSG — App        | `corp-prod-nsg-app-cus`             | Port 8080 from Web subnet only                       |
+| NSG — Database   | `corp-prod-nsg-db-cus`              | SQL 1433 from App subnet only                        |
+| NSG — Spoke      | `corp-prod-nsg-spoke-cus`           | Inbound from Hub VNet prefix only                    |
+| Storage Account  | `corpprodstxxxxxxxx`                | Blob storage — public access fully disabled          |
+| Private Endpoint | `corp-prod-pe-storage-cus`          | Maps storage to internal IP 10.10.4.4                |
+| Private DNS Zone | `privatelink.blob.core.windows.net` | Auto-linked to Hub and Spoke                         |
+| VPN Gateway      | `corp-prod-vpngw-cus`               | Point-to-Site VPN (provisioned)                      |
+| Azure Bastion    | `corp-prod-bas-cus`                 | Browser-based VM access — no ports open              |
+| Azure Firewall   | `corp-prod-afw-cus`                 | Outbound traffic inspection                          |
+| Key Vault        | `corp-prod-kv-cus`                  | Secrets and certificates — RBAC + network restricted |
+| Log Analytics    | `corp-prod-law-cus`                 | Central sink for all diagnostic data                 |
+| Remote State     | `tfstatexxxxxxxx`                   | Terraform state — encrypted, versioned, lease-locked |
 
 ---
 
 ## Phase Roadmap
 
-| Phase | Components | Status |
-|-------|-----------|--------|
-| Phase 1 — Core Network | NSGs, Hub VNet, Spoke VNet, VNet Peering | ✅ Complete |
-| Phase 2 — Secure Storage | Storage Account, Private Endpoint, Private DNS | ✅ Complete |
-| Phase 3 — Remote Access | VPN Gateway provisioned, P2S cert pending | ✅ Provisioned |
-| Phase 4 — Observability | Log Analytics, Firewall Diagnostics, NSG Flow Logs | ✅ Complete |
-| Phase 5 — Enterprise Hardening | Azure Bastion, Azure Firewall, Key Vault | ✅ Complete |
-| Phase 6 — State Management | Remote State Backend | ✅ Complete |
-| Phase 7 — Policy & Governance | Azure Policy, DDoS Standard, Defender for Cloud, Terratest | 🔜 Planned |
+| Phase                          | Components                                                 | Status         |
+| ------------------------------ | ---------------------------------------------------------- | -------------- |
+| Phase 1 — Core Network         | NSGs, Hub VNet, Spoke VNet, VNet Peering                   | ✅ Complete    |
+| Phase 2 — Secure Storage       | Storage Account, Private Endpoint, Private DNS             | ✅ Complete    |
+| Phase 3 — Remote Access        | VPN Gateway provisioned, P2S cert pending                  | ✅ Provisioned |
+| Phase 4 — Observability        | Log Analytics, Firewall Diagnostics, NSG Flow Logs         | ✅ Complete    |
+| Phase 5 — Enterprise Hardening | Azure Bastion, Azure Firewall, Key Vault                   | ✅ Complete    |
+| Phase 6 — State Management     | Remote State Backend                                       | ✅ Complete    |
+| Phase 7 — Policy & Governance  | Azure Policy, DDoS Standard, Defender for Cloud, Terratest | 🔜 Planned     |
 
 ---
 
@@ -344,4 +344,13 @@ az network nsg show \
 
 ---
 
-*Portfolio project demonstrating production-grade Azure network engineering with Terraform — covering zero-trust network design, modular IaC patterns, private connectivity, remote state management, and enterprise security hardening.*
+_Portfolio project demonstrating production-grade Azure network engineering with Terraform — covering zero-trust network design, modular IaC patterns, private connectivity, remote state management, and enterprise security hardening._
+
+https://github.com/Promise-gf/My-Azure-Projects/blob/main/images/Screenshot%20(338).png
+https://github.com/Promise-gf/My-Azure-Projects/blob/main/images/Screenshot%20(339).png
+https://github.com/Promise-gf/My-Azure-Projects/blob/main/images/Screenshot%20(343).png
+https://github.com/Promise-gf/My-Azure-Projects/blob/main/images/Screenshot%20(344).png
+https://github.com/Promise-gf/My-Azure-Projects/blob/main/images/Screenshot%20(345).png
+https://github.com/Promise-gf/My-Azure-Projects/blob/main/images/Screenshot%20(346).png
+https://github.com/Promise-gf/My-Azure-Projects/blob/main/images/Screenshot%20(347).png
+https://github.com/Promise-gf/My-Azure-Projects/blob/main/images/Screenshot%20(348).png

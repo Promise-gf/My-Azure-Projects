@@ -49,9 +49,11 @@ jobs:
 
       - name: Create terraform.tfvars
         run: |
-          cat > terraform.tfvars << 'EOF'
+          cat > "$GITHUB_WORKSPACE/Terraform/Network Architecture/terraform.tfvars" << 'EOF'
           ${{ secrets.TF_VARS_FILE }}
           EOF
+          echo "tfvars written, verifying..."
+          ls -la "$GITHUB_WORKSPACE/Terraform/Network Architecture/"
 
       - name: Terraform Init
         run: |

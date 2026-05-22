@@ -47,16 +47,6 @@ jobs:
           terraform_version: 1.7.0
           terraform_wrapper: false
 
-      - name: Create terraform.tfvars
-        env:
-          TF_VARS_CONTENT: ${{ secrets.TF_VARS_FILE }}
-        run: |
-          printf '%s' "$TF_VARS_CONTENT" > "$GITHUB_WORKSPACE/Terraform/Network Architecture/terraform.tfvars"
-          echo "--- tfvars contents ---"
-          cat "$GITHUB_WORKSPACE/Terraform/Network Architecture/terraform.tfvars"
-          echo "--- end ---"
-          wc -l "$GITHUB_WORKSPACE/Terraform/Network Architecture/terraform.tfvars"
-
       - name: Terraform Init
         run: |
           terraform init \

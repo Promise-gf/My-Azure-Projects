@@ -15,6 +15,10 @@ jobs:
     runs-on: ubuntu-latest
     environment: production
 
+    defaults:
+      run:
+        working-directory: "Terraform/Network Architecture"
+
     permissions:
       id-token: write
       contents: read
@@ -43,6 +47,12 @@ jobs:
           terraform_version: 1.7.0
           terraform_wrapper: false
 
+      - name: Create terraform.tfvars
+        run: |
+          cat > terraform.tfvars << 'EOF'
+          ${{ secrets.TF_VARS_FILE }}
+          EOF
+
       - name: Terraform Init
         run: |
           terraform init \
@@ -51,12 +61,6 @@ jobs:
             -backend-config="container_name=tfstate" \
             -backend-config="key=network.terraform.tfstate" \
             -backend-config="use_oidc=true"
-
-      - name: Create terraform.tfvars
-        run: |
-          cat > terraform.tfvars << 'EOF'
-          ${{ secrets.TF_VARS_FILE }}
-          EOF
 
       - name: Terraform Validate
         run: terraform validate

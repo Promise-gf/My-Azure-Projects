@@ -48,12 +48,14 @@ jobs:
           terraform_wrapper: false
 
       - name: Create terraform.tfvars
+        env:
+          TF_VARS_CONTENT: ${{ secrets.TF_VARS_FILE }}
         run: |
-          cat > "$GITHUB_WORKSPACE/Terraform/Network Architecture/terraform.tfvars" << 'EOF'
-          ${{ secrets.TF_VARS_FILE }}
-          EOF
-          echo "tfvars written, verifying..."
-          ls -la "$GITHUB_WORKSPACE/Terraform/Network Architecture/"
+          printf '%s' "$TF_VARS_CONTENT" > "$GITHUB_WORKSPACE/Terraform/Network Architecture/terraform.tfvars"
+          echo "--- tfvars contents ---"
+          cat "$GITHUB_WORKSPACE/Terraform/Network Architecture/terraform.tfvars"
+          echo "--- end ---"
+          wc -l "$GITHUB_WORKSPACE/Terraform/Network Architecture/terraform.tfvars"
 
       - name: Terraform Init
         run: |

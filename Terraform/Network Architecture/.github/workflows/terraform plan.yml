@@ -38,7 +38,10 @@ jobs:
           tenant-id:       ${{ secrets.ARM_TENANT_ID }}
           subscription-id: ${{ secrets.ARM_SUBSCRIPTION_ID }}
           auth-type:       WORKLOAD_IDENTITY_FEDERATION
-
+      - name: Verify Azure Login        # ← ADD THIS
+        run: |
+          az account show
+          az account list --output table
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v3
         with:

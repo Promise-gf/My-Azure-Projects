@@ -15,10 +15,6 @@ jobs:
     runs-on: ubuntu-latest
     environment: production
 
-    defaults:
-      run:
-        working-directory: "Terraform/Network Architecture"
-
     permissions:
       id-token: write
       contents: read
@@ -34,6 +30,21 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Debug filesystem
+        run: |
+          echo "=== GITHUB_WORKSPACE ==="
+          echo $GITHUB_WORKSPACE
+          echo "=== Root contents ==="
+          ls -la $GITHUB_WORKSPACE
+          echo "=== Terraform folder ==="
+          ls -la "$GITHUB_WORKSPACE/Terraform/" || echo "Terraform folder not found"
+          echo "=== Network Architecture folder ==="
+          ls -la "$GITHUB_WORKSPACE/Terraform/Network Architecture/" || echo "Network Architecture folder not found"
+          echo "=== All tfvars files ==="
+          find $GITHUB_WORKSPACE -name "*.tfvars"
+          echo "=== All tf files ==="
+          find $GITHUB_WORKSPACE -name "*.tf" | head -10
+
       - name: Azure Login
         uses: azure/login@v2
         with:
@@ -48,6 +59,7 @@ jobs:
           terraform_wrapper: false
 
       - name: Terraform Init
+        working-directory: "Terraform/Network Architecture"
         run: |
           terraform init \
             -backend-config="resource_group_name=rg-tfstate" \
@@ -57,9 +69,11 @@ jobs:
             -backend-config="use_oidc=true"
 
       - name: Terraform Validate
+        working-directory: "Terraform/Network Architecture"
         run: terraform validate
 
       - name: Terraform Plan
+        working-directory: "Terraform/Network Architecture"
         run: |
           terraform plan \
             -var-file="terraform.tfvars" \
@@ -67,4 +81,5 @@ jobs:
             -out=tfplan
 
       - name: Terraform Apply
+        working-directory: "Terraform/Network Architecture"
         run: terraform apply -auto-approve tfplan

@@ -25,25 +25,11 @@ jobs:
       ARM_SUBSCRIPTION_ID:       ${{ secrets.ARM_SUBSCRIPTION_ID }}
       ARM_USE_OIDC:              "true"
       TF_VAR_vpn_root_cert_data: ${{ secrets.TF_VAR_VPN_ROOT_CERT_DATA }}
+      TF_DIR:                    "Terraform/Network Architecture"
 
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-
-      - name: Debug filesystem
-        run: |
-          echo "=== GITHUB_WORKSPACE ==="
-          echo $GITHUB_WORKSPACE
-          echo "=== Root contents ==="
-          ls -la $GITHUB_WORKSPACE
-          echo "=== Terraform folder ==="
-          ls -la "$GITHUB_WORKSPACE/Terraform/" || echo "Terraform folder not found"
-          echo "=== Network Architecture folder ==="
-          ls -la "$GITHUB_WORKSPACE/Terraform/Network Architecture/" || echo "Network Architecture folder not found"
-          echo "=== All tfvars files ==="
-          find $GITHUB_WORKSPACE -name "*.tfvars"
-          echo "=== All tf files ==="
-          find $GITHUB_WORKSPACE -name "*.tf" | head -10
 
       - name: Azure Login
         uses: azure/login@v2
@@ -58,9 +44,18 @@ jobs:
           terraform_version: 1.7.0
           terraform_wrapper: false
 
-      - name: Terraform Init
-        working-directory: "Terraform/Network Architecture"
+      - name: Debug and verify tfvars
         run: |
+          echo "Runner workspace: $GITHUB_WORKSPACE"
+          echo "TF directory: $TF_DIR"
+          cd "$GITHUB_WORKSPACE/$TF_DIR"
+          echo "Current dir: $(pwd)"
+          ls -la
+          echo "tfvars exists:" && cat terraform.tfvars || echo "NOT FOUND"
+
+      - name: Terraform Init
+        run: |
+          cd "$GITHUB_WORKSPACE/$TF_DIR"
           terraform init \
             -backend-config="resource_group_name=rg-tfstate" \
             -backend-config="storage_account_name=${{ secrets.BACKEND_STORAGE_ACCOUNT }}" \
@@ -69,17 +64,19 @@ jobs:
             -backend-config="use_oidc=true"
 
       - name: Terraform Validate
-        working-directory: "Terraform/Network Architecture"
-        run: terraform validate
+        run: |
+          cd "$GITHUB_WORKSPACE/$TF_DIR"
+          terraform validate
 
       - name: Terraform Plan
-        working-directory: "Terraform/Network Architecture"
         run: |
+          cd "$GITHUB_WORKSPACE/$TF_DIR"
           terraform plan \
             -var-file="terraform.tfvars" \
             -no-color \
             -out=tfplan
 
       - name: Terraform Apply
-        working-directory: "Terraform/Network Architecture"
-        run: terraform apply -auto-approve tfplan
+        run: |
+          cd "$GITHUB_WORKSPACE/$TF_DIR"
+          terraform apply -auto-approve tfplan

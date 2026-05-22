@@ -1,7 +1,7 @@
-name: Terraform Plan
+name: Terraform Apply
 
 on:
-  pull_request:
+  push:
     branches:
       - main
     paths:
@@ -9,21 +9,20 @@ on:
       - '**.tfvars'
 
 jobs:
-  terraform-plan:
-    name: Fmt · Validate · Plan
+  terraform-apply:
+    name: Apply
     runs-on: ubuntu-latest
     environment: production
 
     permissions:
-      id-token: write      # ← GitHub generates OIDC token
+      id-token: write
       contents: read
-      pull-requests: write
 
     env:
       ARM_CLIENT_ID:             ${{ secrets.ARM_CLIENT_ID }}
       ARM_TENANT_ID:             ${{ secrets.ARM_TENANT_ID }}
       ARM_SUBSCRIPTION_ID:       ${{ secrets.ARM_SUBSCRIPTION_ID }}
-      ARM_USE_OIDC:              "true"    # ← Terraform handles OIDC natively
+      ARM_USE_OIDC:              "true"
       TF_VAR_vpn_root_cert_data: ${{ secrets.TF_VAR_VPN_ROOT_CERT_DATA }}
       FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 
@@ -36,9 +35,6 @@ jobs:
         with:
           terraform_version: 1.7.0
           terraform_wrapper: false
-
-      - name: Terraform Format Check
-        run: terraform fmt -check -recursive
 
       - name: Terraform Init
         run: |
@@ -58,9 +54,5 @@ jobs:
             -no-color \
             -out=tfplan
 
-      - name: Upload Plan Artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: tfplan
-          path: tfplan
-          retention-days: 5
+      - name: Terraform Apply
+        run: terraform apply -auto-approve tfplan

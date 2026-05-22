@@ -52,6 +52,12 @@ jobs:
             -backend-config="key=network.terraform.tfstate" \
             -backend-config="use_oidc=true"
 
+      - name: Create terraform.tfvars
+        run: |
+          cat > terraform.tfvars << 'EOF'
+          ${{ secrets.TF_VARS_FILE }}
+          EOF
+
       - name: Terraform Validate
         run: terraform validate
 

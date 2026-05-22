@@ -64,13 +64,45 @@ jobs:
           cd "$GITHUB_WORKSPACE/Terraform/Network Architecture"
           terraform validate
 
+      # ==============================================
+      # THIS IS THE STEP THAT CHANGES:
+      # ==============================================
       - name: Terraform Plan
         run: |
           cd "$GITHUB_WORKSPACE/Terraform/Network Architecture"
+          
+          # 1. Create the tfvars file dynamically so Git doesn't need to track it
+          cat > terraform.tfvars << 'EOF'
+          resource_group_name   = "rg-corp-network-dev"
+          location              = "centralus"
+          prefix                = "corp"
+          environment           = "prod"
+
+          subnets = {
+            web                 = "10.10.1.0/24"
+            app                 = "10.10.2.0/24"
+            db                  = "10.10.3.0/24"
+            pe                  = "10.10.4.0/24"
+            gateway             = "10.10.255.224/27"
+            AzureBastionSubnet  = "10.10.254.0/26"
+            AzureFirewallSubnet = "10.10.253.0/26"
+            secondary           = "10.20.1.0/24"
+          }
+
+          deploy_vpn               = true
+          deploy_bastion           = true
+          deploy_firewall          = true
+          deploy_log_analytics     = true
+          deploy_key_vault         = true
+          deploy_private_endpoints = true
+          EOF
+          
+          # 2. Run the plan (it will find the file created above)
           terraform plan \
             -var-file="terraform.tfvars" \
             -no-color \
             -out=tfplan
+      # ==============================================
 
       - name: Terraform Apply
         run: |

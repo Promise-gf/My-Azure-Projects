@@ -12,20 +12,22 @@ terraform {
     }
   }
 
-  backend "azurerm" {
-    resource_group_name  = "rg-tfstate"
-    storage_account_name = "tfstate50e5ccc5"
-    container_name       = "tfstate"
-    key                  = "network.terraform.tfstate"
-  }
+  # Leave this completely empty!
+  # Terraform will merge the -backend-config="..." flags 
+  # from your GitHub Actions YAML into this empty block at runtime.
+  backend "azurerm" {}
 }
 
+# Only ONE provider block is allowed.
 provider "azurerm" {
   features {}
+  # Do NOT put use_oidc here. It is handled by env vars.
 }
 
+# Required for generating a unique storage account name
 resource "random_id" "storage" {
   byte_length = 8
 }
 
+# Fetches details of the currently logged-in Azure user
 data "azurerm_client_config" "current" {}

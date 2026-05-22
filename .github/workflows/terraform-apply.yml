@@ -25,7 +25,6 @@ jobs:
       ARM_SUBSCRIPTION_ID:       ${{ secrets.ARM_SUBSCRIPTION_ID }}
       ARM_USE_OIDC:              "true"
       TF_VAR_vpn_root_cert_data: ${{ secrets.TF_VAR_VPN_ROOT_CERT_DATA }}
-      TF_DIR:                    "Terraform/Network Architecture"
 
     steps:
       - name: Checkout
@@ -44,18 +43,15 @@ jobs:
           terraform_version: 1.7.0
           terraform_wrapper: false
 
-      - name: Debug and verify tfvars
+      - name: Debug directory
         run: |
-          echo "Runner workspace: $GITHUB_WORKSPACE"
-          echo "TF directory: $TF_DIR"
-          cd "$GITHUB_WORKSPACE/$TF_DIR"
-          echo "Current dir: $(pwd)"
+          cd "$GITHUB_WORKSPACE/Terraform/Network Architecture"
+          echo "pwd=$(pwd)"
           ls -la
-          echo "tfvars exists:" && cat terraform.tfvars || echo "NOT FOUND"
 
       - name: Terraform Init
         run: |
-          cd "$GITHUB_WORKSPACE/$TF_DIR"
+          cd "$GITHUB_WORKSPACE/Terraform/Network Architecture"
           terraform init \
             -backend-config="resource_group_name=rg-tfstate" \
             -backend-config="storage_account_name=${{ secrets.BACKEND_STORAGE_ACCOUNT }}" \
@@ -65,12 +61,12 @@ jobs:
 
       - name: Terraform Validate
         run: |
-          cd "$GITHUB_WORKSPACE/$TF_DIR"
+          cd "$GITHUB_WORKSPACE/Terraform/Network Architecture"
           terraform validate
 
       - name: Terraform Plan
         run: |
-          cd "$GITHUB_WORKSPACE/$TF_DIR"
+          cd "$GITHUB_WORKSPACE/Terraform/Network Architecture"
           terraform plan \
             -var-file="terraform.tfvars" \
             -no-color \
@@ -78,5 +74,5 @@ jobs:
 
       - name: Terraform Apply
         run: |
-          cd "$GITHUB_WORKSPACE/$TF_DIR"
+          cd "$GITHUB_WORKSPACE/Terraform/Network Architecture"
           terraform apply -auto-approve tfplan

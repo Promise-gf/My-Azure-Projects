@@ -15,23 +15,31 @@ jobs:
     environment: production
 
     permissions:
-      id-token: write        # ← required for OIDC
+      id-token: write
       contents: read
 
     env:
       ARM_CLIENT_ID:             ${{ secrets.ARM_CLIENT_ID }}
       ARM_TENANT_ID:             ${{ secrets.ARM_TENANT_ID }}
       ARM_SUBSCRIPTION_ID:       ${{ secrets.ARM_SUBSCRIPTION_ID }}
-      ARM_USE_OIDC:              "true"                              # ← no client secret
+      ARM_USE_OIDC:              "true"
       TF_VAR_vpn_root_cert_data: ${{ secrets.TF_VAR_VPN_ROOT_CERT_DATA }}
       FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4              # ✅ fixed
+        uses: actions/checkout@v4
+
+      - name: Azure Login via OIDC
+        uses: azure/login@v2
+        with:
+          client-id:       ${{ secrets.ARM_CLIENT_ID }}
+          tenant-id:       ${{ secrets.ARM_TENANT_ID }}
+          subscription-id: ${{ secrets.ARM_SUBSCRIPTION_ID }}
+          auth-type:       WORKLOAD_IDENTITY_FEDERATION        # ← explicitly OIDC
 
       - name: Setup Terraform
-        uses: hashicorp/setup-terraform@v3     # ✅ fixed
+        uses: hashicorp/setup-terraform@v3
         with:
           terraform_version: 1.7.0
           terraform_wrapper: false

@@ -7,6 +7,7 @@ on:
     paths:
       - '**.tf'
       - '**.tfvars'
+  workflow_dispatch:          # ← manual trigger button on GitHub
 
 jobs:
   terraform-apply:

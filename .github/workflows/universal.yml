@@ -1,7 +1,6 @@
 # ─────────────────────────────────────────────────────────────────────────────
-# Universal Azure Pipeline — v10
-# Changes v10: added environment: azure-deploy to test and deploy jobs
-#              so OIDC subject matches the federated credential.
+# Universal Azure Pipeline — v11
+# Changes v11: added terraform as a script type
 # ─────────────────────────────────────────────────────────────────────────────
 
 name: Universal Azure Pipeline
@@ -22,10 +21,24 @@ on:
         description: "Script file path (e.g. scripts/deploy.sh)"
         required: false
       script_type:
-        description: "Script runtime: bash | powershell | python"
+        description: "Script runtime: bash | powershell | python | terraform"
         required: false
         type: choice
-        options: [bash, powershell, python]
+        options: [bash, powershell, python, terraform]       # ← added terraform
+
+      # ── Terraform options ────────────────────────────────────────────
+      terraform_dir:
+        description: "Terraform working directory (e.g. Terraform)"
+        required: false
+        default: "Terraform"
+      terraform_version:
+        description: "Terraform version (e.g. 1.7.0)"
+        required: false
+        default: "1.7.0"
+      terraform_vars_file:
+        description: "Terraform tfvars file (e.g. terraform.tfvars)"
+        required: false
+        default: "terraform.tfvars"
 
       # ── Bicep options ────────────────────────────────────────────────
       bicep_file:
@@ -63,7 +76,6 @@ jobs:
 
   # ────────────────────────────────────────────────────────────────────────────
   # Job 1: BUILD
-  # Validates inputs and performs offline checks (no Azure auth needed).
   # ────────────────────────────────────────────────────────────────────────────
   build:
     name: "Build [${{ inputs.environment }}]"
@@ -82,8 +94,10 @@ jobs:
         run: |
           ERR=0
           if [[ "${{ inputs.mode }}" == "script" ]]; then
-            [[ -z "${{ inputs.script_name }}" ]] && echo "::error::script_name required for mode=script" && ERR=1
-            [[ -z "${{ inputs.script_type }}" ]] && echo "::error::script_type required for mode=script" && ERR=1
+            [[ -z "${{ inputs.script_name }}" && "${{ inputs.script_type }}" != "terraform" ]] \
+              && echo "::error::script_name required for mode=script (non-terraform)" && ERR=1
+            [[ -z "${{ inputs.script_type }}" ]] \
+              && echo "::error::script_type required for mode=script" && ERR=1
           fi
           [[ "${{ inputs.mode }}" == "bicep" && -z "${{ inputs.bicep_file }}" ]] \
             && echo "::error::bicep_file required for mode=bicep" && ERR=1
@@ -138,6 +152,22 @@ jobs:
           python3 -m py_compile "${{ inputs.script_name }}"
           echo "✅ Python syntax check passed."
 
+      # ── Terraform ────────────────────────────────────────────────────
+      - name: "[terraform] Setup Terraform"
+        if: ${{ inputs.mode == 'script' && inputs.script_type == 'terraform' }}
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: ${{ inputs.terraform_version }}
+          terraform_wrapper: false
+
+      - name: "[terraform] Validate"
+        if: ${{ inputs.mode == 'script' && inputs.script_type == 'terraform' }}
+        working-directory: ${{ inputs.terraform_dir }}
+        run: |
+          terraform init -backend=false
+          terraform validate
+          echo "✅ Terraform validate passed."
+
       - name: Collect build logs
         if: always()
         run: |
@@ -161,19 +191,22 @@ jobs:
 
   # ────────────────────────────────────────────────────────────────────────────
   # Job 2: TEST
-  # Authenticates with Azure via OIDC and does a live dry-run.
   # ────────────────────────────────────────────────────────────────────────────
   test:
     name: "Test [${{ inputs.environment }}]"
     needs: build
     runs-on: ubuntu-latest
     timeout-minutes: 15
-    environment: azure-deploy        # ← OIDC subject must match this
+    environment: azure-deploy
     permissions:
       id-token: write
       contents: read
     env:
       FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+      ARM_CLIENT_ID:       ${{ secrets.AZURE_CLIENT_ID }}
+      ARM_TENANT_ID:       ${{ secrets.AZURE_TENANT_ID }}
+      ARM_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+      ARM_USE_OIDC:        "true"
 
     steps:
       - name: Checkout repository
@@ -182,9 +215,9 @@ jobs:
       - name: Authenticate with Azure
         uses: azure/login@v2
         with:
-          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          tenant-id:       ${{ secrets.AZURE_TENANT_ID }}
           subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
-          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          client-id:       ${{ secrets.AZURE_CLIENT_ID }}
           enable-AzPSSession: true
 
       # ── Bicep ────────────────────────────────────────────────────────
@@ -232,11 +265,11 @@ jobs:
         if: ${{ inputs.mode == 'script' && inputs.script_type == 'powershell' }}
         env:
           DRY_RUN: "true"
-          AZURE_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
+          AZURE_TENANT_ID:       ${{ secrets.AZURE_TENANT_ID }}
           AZURE_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
-          AZURE_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
-          USER_PASSWORD: ${{ secrets.USER_PASSWORD }}
-          ACTIONS_ID_TOKEN_REQUEST_URL: ${{ env.ACTIONS_ID_TOKEN_REQUEST_URL }}
+          AZURE_CLIENT_ID:       ${{ secrets.AZURE_CLIENT_ID }}
+          USER_PASSWORD:         ${{ secrets.USER_PASSWORD }}
+          ACTIONS_ID_TOKEN_REQUEST_URL:   ${{ env.ACTIONS_ID_TOKEN_REQUEST_URL }}
           ACTIONS_ID_TOKEN_REQUEST_TOKEN: ${{ env.ACTIONS_ID_TOKEN_REQUEST_TOKEN }}
         run: |
           pwsh -File "${{ inputs.script_name }}"
@@ -250,6 +283,42 @@ jobs:
         run: |
           python3 "${{ inputs.script_name }}"
           echo "✅ Python dry-run completed."
+
+      # ── Terraform ────────────────────────────────────────────────────
+      - name: "[terraform] Setup Terraform"
+        if: ${{ inputs.mode == 'script' && inputs.script_type == 'terraform' }}
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: ${{ inputs.terraform_version }}
+          terraform_wrapper: false
+
+      - name: "[terraform] Init"
+        if: ${{ inputs.mode == 'script' && inputs.script_type == 'terraform' }}
+        working-directory: ${{ inputs.terraform_dir }}
+        run: |
+          terraform init \
+            -backend-config="resource_group_name=rg-tfstate" \
+            -backend-config="storage_account_name=${{ secrets.BACKEND_STORAGE_ACCOUNT }}" \
+            -backend-config="container_name=tfstate" \
+            -backend-config="key=network.terraform.tfstate"
+
+      - name: "[terraform] Plan (dry-run)"
+        if: ${{ inputs.mode == 'script' && inputs.script_type == 'terraform' }}
+        working-directory: ${{ inputs.terraform_dir }}
+        run: |
+          terraform plan \
+            -var-file="${{ inputs.terraform_vars_file }}" \
+            -no-color \
+            -out=tfplan
+          echo "✅ Terraform plan completed."
+
+      - name: "[terraform] Upload plan artifact"
+        if: ${{ inputs.mode == 'script' && inputs.script_type == 'terraform' }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: "tfplan-${{ inputs.environment }}-${{ github.run_number }}"
+          path: ${{ inputs.terraform_dir }}/tfplan
+          retention-days: 5
 
       - name: Collect test logs
         if: always()
@@ -274,19 +343,22 @@ jobs:
 
   # ────────────────────────────────────────────────────────────────────────────
   # Job 3: DEPLOY
-  # Runs only after test passes. Executes real changes against Azure.
   # ────────────────────────────────────────────────────────────────────────────
   deploy:
     name: "Deploy [${{ inputs.environment }}] (${{ inputs.mode }})"
     needs: test
     runs-on: ubuntu-latest
     timeout-minutes: 30
-    environment: azure-deploy        # ← OIDC subject must match this
+    environment: azure-deploy
     permissions:
       id-token: write
       contents: read
     env:
       FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+      ARM_CLIENT_ID:       ${{ secrets.AZURE_CLIENT_ID }}
+      ARM_TENANT_ID:       ${{ secrets.AZURE_TENANT_ID }}
+      ARM_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+      ARM_USE_OIDC:        "true"
 
     steps:
       - name: Checkout repository
@@ -295,9 +367,9 @@ jobs:
       - name: Authenticate with Azure
         uses: azure/login@v2
         with:
-          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          tenant-id:       ${{ secrets.AZURE_TENANT_ID }}
           subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
-          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          client-id:       ${{ secrets.AZURE_CLIENT_ID }}
           enable-AzPSSession: true
 
       # ── Bicep ────────────────────────────────────────────────────────
@@ -361,11 +433,11 @@ jobs:
       - name: "[powershell] Run script"
         if: ${{ inputs.mode == 'script' && inputs.script_type == 'powershell' }}
         env:
-          AZURE_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
+          AZURE_TENANT_ID:       ${{ secrets.AZURE_TENANT_ID }}
           AZURE_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
-          AZURE_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
-          USER_PASSWORD: ${{ secrets.USER_PASSWORD }}
-          ACTIONS_ID_TOKEN_REQUEST_URL: ${{ env.ACTIONS_ID_TOKEN_REQUEST_URL }}
+          AZURE_CLIENT_ID:       ${{ secrets.AZURE_CLIENT_ID }}
+          USER_PASSWORD:         ${{ secrets.USER_PASSWORD }}
+          ACTIONS_ID_TOKEN_REQUEST_URL:   ${{ env.ACTIONS_ID_TOKEN_REQUEST_URL }}
           ACTIONS_ID_TOKEN_REQUEST_TOKEN: ${{ env.ACTIONS_ID_TOKEN_REQUEST_TOKEN }}
         run: |
           pwsh -File "${{ inputs.script_name }}"
@@ -375,6 +447,38 @@ jobs:
         if: ${{ inputs.mode == 'script' && inputs.script_type == 'python' }}
         run: |
           python3 "${{ inputs.script_name }}"
+
+      # ── Terraform ────────────────────────────────────────────────────
+      - name: "[terraform] Setup Terraform"
+        if: ${{ inputs.mode == 'script' && inputs.script_type == 'terraform' }}
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: ${{ inputs.terraform_version }}
+          terraform_wrapper: false
+
+      - name: "[terraform] Download plan artifact"
+        if: ${{ inputs.mode == 'script' && inputs.script_type == 'terraform' }}
+        uses: actions/download-artifact@v4
+        with:
+          name: "tfplan-${{ inputs.environment }}-${{ github.run_number }}"
+          path: ${{ inputs.terraform_dir }}
+
+      - name: "[terraform] Init"
+        if: ${{ inputs.mode == 'script' && inputs.script_type == 'terraform' }}
+        working-directory: ${{ inputs.terraform_dir }}
+        run: |
+          terraform init \
+            -backend-config="resource_group_name=rg-tfstate" \
+            -backend-config="storage_account_name=${{ secrets.BACKEND_STORAGE_ACCOUNT }}" \
+            -backend-config="container_name=tfstate" \
+            -backend-config="key=network.terraform.tfstate"
+
+      - name: "[terraform] Apply"
+        if: ${{ inputs.mode == 'script' && inputs.script_type == 'terraform' }}
+        working-directory: ${{ inputs.terraform_dir }}
+        run: |
+          terraform apply -auto-approve tfplan
+          echo "✅ Terraform apply completed."
 
       # ── Logs ─────────────────────────────────────────────────────────
       - name: Collect deployment logs

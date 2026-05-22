@@ -23,7 +23,7 @@ jobs:
       ARM_CLIENT_ID:             ${{ secrets.ARM_CLIENT_ID }}
       ARM_TENANT_ID:             ${{ secrets.ARM_TENANT_ID }}
       ARM_SUBSCRIPTION_ID:       ${{ secrets.ARM_SUBSCRIPTION_ID }}
-      ARM_USE_OIDC:              "true"
+      ARM_USE_CLI:               "true"                         # ← changed
       TF_VAR_vpn_root_cert_data: ${{ secrets.TF_VAR_VPN_ROOT_CERT_DATA }}
       FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 
@@ -37,7 +37,7 @@ jobs:
           client-id:       ${{ secrets.ARM_CLIENT_ID }}
           tenant-id:       ${{ secrets.ARM_TENANT_ID }}
           subscription-id: ${{ secrets.ARM_SUBSCRIPTION_ID }}
-          auth-type:       WORKLOAD_IDENTITY_FEDERATION        # ← explicitly OIDC
+          auth-type:       WORKLOAD_IDENTITY_FEDERATION
 
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v3

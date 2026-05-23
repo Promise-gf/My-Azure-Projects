@@ -9,6 +9,14 @@
 
 ---
 
+## ⚠️ Critical Prerequisite — Remote State Storage Must Exist First
+
+> **Before running `terraform init` or any deployment step, you must manually create the remote state backend storage account.** Terraform cannot create its own backend — the storage account must exist before Terraform is initialised. Skipping this step will cause `terraform init` to fail with a `ResourceGroupNotFound` error.
+
+See the [Bootstrap section](#bootstrap-one-time-before-terraform-init) for the exact commands.
+
+---
+
 ## The Problem
 
 **CreditBridge** is a fictional Nigerian digital lending startup. Their engineering team built their initial Azure infrastructure rapidly during a funding sprint — trading security and governance for speed to market. Six months later, a routine third-party security audit exposed the following:
@@ -232,46 +240,101 @@ rg-tfstate/
 - **Lease-based locking** — Terraform acquires a blob lease before every operation; concurrent runs are blocked automatically
 - **Isolated resource group** — state survives even if the application resource group is deleted
 
-### Bootstrap (one-time, before `terraform init`)
+---
+
+## Bootstrap (One-Time, Before `terraform init`)
+
+> **🚨 This step is mandatory. The remote state storage account must exist before `terraform init` is run — by any person, on any machine, or in any CI/CD pipeline. Terraform cannot create its own backend. If this step is skipped, `terraform init` will fail with:**
+>
+> ```
+> Error: Failed to get existing workspaces
+> ResourceGroupNotFound: Resource group 'rg-tfstate' could not be found.
+> ```
+
+Run these commands **once**, from any machine with Azure CLI access, before anything else:
 
 ```bash
-az group create --name rg-tfstate --location centralus
+# Step 1 — Create the dedicated state resource group
+az group create \
+  --name rg-tfstate \
+  --location centralus
 
+# Step 2 — Create the storage account (name must be globally unique)
+STORAGE_ACCOUNT="tfstate$RANDOM"
 az storage account create \
-  --name tfstate$RANDOM \
+  --name $STORAGE_ACCOUNT \
   --resource-group rg-tfstate \
+  --location centralus \
   --sku Standard_LRS \
   --min-tls-version TLS1_2 \
   --allow-blob-public-access false
 
-az storage container create --name tfstate --account-name <your-storage-account>
+# Step 3 — Create the blob container
+az storage container create \
+  --name tfstate \
+  --account-name $STORAGE_ACCOUNT
 
+# Step 4 — Enable blob versioning for state rollback
 az storage account blob-service-properties update \
-  --account-name <your-storage-account> \
+  --account-name $STORAGE_ACCOUNT \
   --resource-group rg-tfstate \
   --enable-versioning true
+
+# Step 5 — Print the storage account name — save this value
+echo "✅ Bootstrap complete. Storage account: $STORAGE_ACCOUNT"
+```
+
+> **Save the storage account name** printed in Step 5. You will need it in two places:
+>
+> - As the `storage_account_name` value in `backend.tf`
+> - As the `BACKEND_STORAGE_ACCOUNT` secret in your GitHub Actions repository secrets
+
+### Grant the Service Principal Access to the State Backend
+
+If deploying via GitHub Actions with OIDC, the Service Principal also needs access to read and write the state file:
+
+```bash
+az role assignment create \
+  --assignee <your-app-client-id> \
+  --role "Storage Blob Data Contributor" \
+  --scope /subscriptions/<subscription-id>/resourceGroups/rg-tfstate
 ```
 
 ---
 
 ## Deployment
 
+> **Ensure the [Bootstrap](#bootstrap-one-time-before-terraform-init) step above has been completed before proceeding.**
+
 ```bash
 # 1. Clone
-git clone https://github.com/your-username/azure-secure-hub-spoke.git
+git clone https://github.com/Promise-gf/My-Azure-Projects/tree/main/Terraform/Network%20Architecture
 cd azure-secure-hub-spoke
 
-# 2. Create resource group
+# 2. Create the application resource group
 az group create --name rg-corp-network-prod --location centralus
 
-# 3. Initialise (connects to remote state backend)
+# 3. Initialise Terraform (connects to remote state backend — must exist first)
 terraform init
 
 # 4. Dry run
-terraform plan -var="resource_group_name=rg-corp-network-prod" -out=tfplan
+terraform plan -var-file="terraform.tfvars" -out=tfplan
 
 # 5. Deploy
 terraform apply tfplan
+```
+
+### Deployment Order Summary
+
+```
+Step 1 — Bootstrap (manual, one-time)
+  └── Create rg-tfstate resource group
+  └── Create tfstate storage account          ← MUST exist before step 2
+  └── Create tfstate blob container
+
+Step 2 — terraform init                       ← connects to backend created in Step 1
+Step 3 — terraform plan
+Step 4 — terraform apply
 ```
 
 ### Verify Zero-Trust Controls
@@ -340,17 +403,17 @@ az network nsg show \
 - [Azure CLI](https://learn.microsoft.com/en-us/cli/azure/install-azure-cli) — authenticated via `az login`
 - [Terraform CLI](https://developer.hashicorp.com/terraform/downloads) — v1.5.0 or later
 - Contributor access on the target Azure subscription
-- Remote state storage bootstrapped (see above)
+- **Remote state storage bootstrapped before `terraform init`** (see [Bootstrap](#bootstrap-one-time-before-terraform-init) above)
 
 ---
 
 _Portfolio project demonstrating production-grade Azure network engineering with Terraform — covering zero-trust network design, modular IaC patterns, private connectivity, remote state management, and enterprise security hardening._
 
-![Resource Group](../../images/Screenshot%20(338).png)
-![Network Topology](../../images/Screenshot%20(339).png)
-![NSG Rules](../../images/Screenshot%20(343).png)
-![Private Endpoint](../../images/Screenshot%20(344).png)
-![DNS Zone](../../images/Screenshot%20(345).png)
-![Firewall Logs](../../images/Screenshot%20(346).png)
-![Bastion Access](../../images/Screenshot%20(347).png)
-![Key Vault](../../images/Screenshot%20(348).png)
+![Resource Group](<../../images/Screenshot%20(338).png>)
+![Network Topology](<../../images/Screenshot%20(339).png>)
+![NSG Rules](<../../images/Screenshot%20(343).png>)
+![Private Endpoint](<../../images/Screenshot%20(344).png>)
+![DNS Zone](<../../images/Screenshot%20(345).png>)
+![Firewall Logs](<../../images/Screenshot%20(346).png>)
+![Bastion Access](<../../images/Screenshot%20(347).png>)
+![Key Vault](<../../images/Screenshot%20(348).png>)

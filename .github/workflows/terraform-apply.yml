@@ -1,12 +1,12 @@
-name: Terraform Apply
+name: Terraform Network Deploy
 
 on:
   push:
     branches:
       - main
     paths:
-      - '**.tf'
-      - '**.tfvars'
+      - 'Terraform/Network Architecture/**.tf'
+      - 'Terraform/Network Architecture/**.tfvars'
   workflow_dispatch:
 
 jobs:
@@ -43,15 +43,35 @@ jobs:
           terraform_version: 1.7.0
           terraform_wrapper: false
 
-      - name: Debug directory
+      # ==============================================
+      # THE METHOD FROM YOUR OLD PROJECT:
+      # Pre-flight validation to ensure files exist
+      # ==============================================
+      - name: Validate Terraform Files
         run: |
-          cd "$GITHUB_WORKSPACE/Terraform/Network Architecture"
-          echo "pwd=$(pwd)"
-          ls -la
+          ERR=0
+          TF_DIR="Terraform/Network Architecture"
+          TF_VARS="$TF_DIR/terraform.tfvars"
+          
+          if [ ! -d "$TF_DIR" ]; then
+            echo "::error::Directory $TF_DIR does not exist."
+            ERR=1
+          fi
+          
+          if [ ! -f "$TF_VARS" ]; then
+            echo "::error::File $TF_VARS does not exist. Please commit it to the repository."
+            ERR=1
+          fi
+          
+          [[ $ERR -eq 0 ]] || exit 1
+          echo "✅ Pre-flight validation passed."
 
+      # ==============================================
+      # Using working-directory instead of 'cd'
+      # ==============================================
       - name: Terraform Init
+        working-directory: "Terraform/Network Architecture"
         run: |
-          cd "$GITHUB_WORKSPACE/Terraform/Network Architecture"
           terraform init \
             -backend-config="resource_group_name=rg-tfstate" \
             -backend-config="storage_account_name=${{ secrets.BACKEND_STORAGE_ACCOUNT }}" \
@@ -60,51 +80,17 @@ jobs:
             -backend-config="use_oidc=true"
 
       - name: Terraform Validate
-        run: |
-          cd "$GITHUB_WORKSPACE/Terraform/Network Architecture"
-          terraform validate
+        working-directory: "Terraform/Network Architecture"
+        run: terraform validate
 
-      # ==============================================
-      # THIS IS THE STEP THAT CHANGES:
-      # ==============================================
       - name: Terraform Plan
+        working-directory: "Terraform/Network Architecture"
         run: |
-          cd "$GITHUB_WORKSPACE/Terraform/Network Architecture"
-          
-          # 1. Create the tfvars file dynamically so Git doesn't need to track it
-          cat > terraform.tfvars << 'EOF'
-          resource_group_name   = "rg-corp-network-dev"
-          location              = "centralus"
-          prefix                = "corp"
-          environment           = "prod"
-
-          subnets = {
-            web                 = "10.10.1.0/24"
-            app                 = "10.10.2.0/24"
-            db                  = "10.10.3.0/24"
-            pe                  = "10.10.4.0/24"
-            gateway             = "10.10.255.224/27"
-            AzureBastionSubnet  = "10.10.254.0/26"
-            AzureFirewallSubnet = "10.10.253.0/26"
-            secondary           = "10.20.1.0/24"
-          }
-
-          deploy_vpn               = true
-          deploy_bastion           = true
-          deploy_firewall          = true
-          deploy_log_analytics     = true
-          deploy_key_vault         = true
-          deploy_private_endpoints = true
-          EOF
-          
-          # 2. Run the plan (it will find the file created above)
           terraform plan \
             -var-file="terraform.tfvars" \
             -no-color \
             -out=tfplan
-      # ==============================================
 
       - name: Terraform Apply
-        run: |
-          cd "$GITHUB_WORKSPACE/Terraform/Network Architecture"
-          terraform apply -auto-approve tfplan
+        working-directory: "Terraform/Network Architecture"
+        run: terraform apply -auto-approve tfplan

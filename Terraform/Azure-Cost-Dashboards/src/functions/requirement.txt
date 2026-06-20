@@ -1,0 +1,9 @@
+azure-functions==1.18.0
+azure-identity==1.15.0
+azure-storage-blob==12.19.0
+azure-storage-queue==12.9.0
+azure-monitor-ingestion==1.0.3
+httpx==0.25.1
+pydantic==2.10.6
+pydantic-settings==2.7.0
+python-dotenv==1.0.0

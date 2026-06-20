@@ -1,0 +1,42 @@
+name: CI - Infrastructure
+on:
+  pull_request:
+    paths: ['infra/**']
+
+permissions:
+  id-token: write
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: hashicorp/setup-terraform@v3
+        with: { terraform_version: "1.7.0" }
+      - name: Setup Terragrunt
+        run: |
+          wget -q https://github.com/gruntwork-io/terragrunt/releases/download/v0.55.0/terragrunt_linux_amd64
+          chmod +x terragrunt_linux_amd64
+          sudo mv terragrunt_linux_amd64 /usr/local/bin/terragrunt
+
+      - name: Azure Login (OIDC)
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      # Enterprise: Inject State Config securely from GitHub Secrets
+      - name: Terragrunt Validate
+        run: cd infra/environments/dev && terragrunt run-all validate
+        env:
+          # Authentication for Azure
+          ARM_USE_OIDC: "true"
+          ARM_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
+          ARM_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+          
+          # Authentication for Remote State (No hardcoded values)
+          TF_STATE_RG: ${{ secrets.TF_STATE_RG }}
+          TF_STATE_SA: ${{ secrets.TF_STATE_SA }}
+          TF_STATE_CONTAINER: "tfstate"

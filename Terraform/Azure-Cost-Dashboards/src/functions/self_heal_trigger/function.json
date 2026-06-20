@@ -1,0 +1,7 @@
+{
+  "scriptFile": "__init__.py",
+  "bindings": [
+    { "type": "httpTrigger", "name": "req", "direction": "in", "methods": ["POST"], "route": "api/self-heal", "authLevel": "function" },
+    { "type": "http", "name": "$return", "direction": "out" }
+  ]
+}

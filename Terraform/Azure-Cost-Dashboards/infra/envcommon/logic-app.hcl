@@ -1,0 +1,1 @@
+terraform { source = "${dirname(find_in_parent_folders())}//modules/self-healing-logic-app" }

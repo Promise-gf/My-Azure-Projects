@@ -1,0 +1,65 @@
+{
+  "annotations": { "list": [] },
+  "editable": true,
+  "fiscalYearStartMonth": 0,
+  "graphTooltip": 0,
+  "id": null,
+  "links": [],
+  "panels": [
+    {
+      "datasource": { "type": "azuremonitor", "uid": "${DS_LOG_ANALYTICS}" },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "thresholds" },
+          "thresholds": {
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "yellow", "value": 80 },
+              { "color": "red", "value": 100 }
+            ]
+          },
+          "unit": "currencyUSD"
+        }
+      },
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 0 },
+      "id": 1,
+      "options": { "orientation": "auto", "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false }, "showThresholdLabels": false, "showThresholdMarkers": true },
+      "title": "Current Monthly Spend vs Budget",
+      "type": "gauge",
+      "targets": [
+        {
+          "azureLogAnalytics": {
+            "query": "CostEnriched_CL | summarize TotalSpend = sum(Cost_d) by bin(TimeGenerated, 1d) | order by TimeGenerated desc | limit 1 | project TotalSpend",
+            "resultFormat": "table"
+          },
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "datasource": { "type": "azuremonitor", "uid": "${DS_LOG_ANALYTICS}" },
+      "fieldConfig": { "defaults": { "color": { "mode": "palette-classic" }, "unit": "currencyUSD" }, "overrides": [] },
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 0 },
+      "id": 2,
+      "options": { "legend": { "displayMode": "list", "placement": "bottom" }, "tooltip": { "mode": "single" } },
+      "title": "Spend by Department",
+      "type": "piechart",
+      "targets": [
+        {
+          "azureLogAnalytics": {
+            "query": "CostEnriched_CL | summarize TotalCost = sum(Cost_d) by Department_s | order by TotalCost desc",
+            "resultFormat": "table"
+          },
+          "refId": "A"
+        }
+      ]
+    }
+  ],
+  "schemaVersion": 38,
+  "style": "dark",
+  "tags": ["finops", "cost-visibility"],
+  "templating": { "list": [] },
+  "time": { "from": "now-30d", "to": "now" },
+  "title": "Executive Cost Overview",
+  "version": 1
+}

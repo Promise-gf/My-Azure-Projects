@@ -1,0 +1,6 @@
+{
+    "azureFunctions.deploySubpath": "Terraform\\Azure-Cost-Dashboards\\src\\functions",
+    "azureFunctions.projectLanguage": "Custom",
+    "azureFunctions.projectRuntime": "~4",
+    "debug.internalConsoleOptions": "neverOpen"
+}

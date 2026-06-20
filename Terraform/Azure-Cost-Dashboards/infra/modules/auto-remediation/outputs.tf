@@ -1,0 +1,1 @@
+output "auto_stop_webhook_url" { value = azurerm_logic_app_trigger_http_request.auto_stop_trigger.callback_url }

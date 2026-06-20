@@ -1,0 +1,79 @@
+name: CD - Application
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'src/**'
+
+permissions:
+  id-token: write
+  contents: read
+
+jobs:
+  deploy-dev:
+    runs-on: ubuntu-latest
+    environment: dev
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Azure Login (OIDC)
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      # Enterprise: Deploy Container to Function App
+      # Note: Terraform handles infra, CI/CD handles application image tags
+      - name: Update Function App Image (Dev)
+        run: |
+          az functionapp config container set \
+            --name func-cvd-dev \
+            --resource-group rg-cvd-dev \
+            --docker-custom-image-name ${{ secrets.ACR_LOGIN_SERVER }}/cost-functions:${{ github.sha }} \
+            --docker-registry-server-url ${{ secrets.ACR_LOGIN_SERVER }}
+
+      # Self-Healing Verification: Ensure the health check passes after deployment
+      - name: Verify Health Check (Dev)
+        run: |
+          sleep 30 # Allow function to pull image, start, and pass health probe
+          STATUS=$(curl -s -o /dev/null -w "%{http_code}" https://func-cvd-dev.azurewebsites.net/api/health)
+          if [ "$STATUS" != "200" ]; then
+            echo "Health check failed after deployment! Status: $STATUS"
+            exit 1
+          fi
+          echo "Deployment successful and healthy!"
+
+  deploy-prod:
+    needs: deploy-dev
+    runs-on: ubuntu-latest
+    environment: prod # Requires manual approval in GitHub Environment settings
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Azure Login (OIDC)
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Update Function App Image (Prod)
+        run: |
+          az functionapp config container set \
+            --name func-cvd-prod \
+            --resource-group rg-cvd-prod \
+            --docker-custom-image-name ${{ secrets.ACR_LOGIN_SERVER }}/cost-functions:${{ github.sha }} \
+            --docker-registry-server-url ${{ secrets.ACR_LOGIN_SERVER }}
+
+      - name: Verify Health Check (Prod)
+        run: |
+          sleep 45 
+          # Note: In Prod, this URL would be the private endpoint via corporate proxy or internal APIM
+          STATUS=$(curl -s -o /dev/null -w "%{http_code}" https://func-cvd-prod.azurewebsites.net/api/health)
+          if [ "$STATUS" != "200" ]; then
+            echo "Prod Health check failed! Status: $STATUS"
+            exit 1
+          fi
+          echo "Prod deployment successful and healthy!"
